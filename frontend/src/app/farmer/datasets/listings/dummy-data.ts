@@ -1,0 +1,66 @@
+import type { Listing } from "../../../../types/Listing";
+
+// TODO: replace with `const { data } = await axios.get("/api/farmer/listings")`
+// once the backend endpoint exists. Shape should match the Listing type.
+export const dummyListings: Listing[] = [
+  {
+    id: "lst_001",
+    title: "Maize soil moisture - Eastern Province, 2025",
+    cropType: "Maize",
+    region: "Eastern Province",
+    price: 120,
+    status: "live",
+    uploadedDate: "2026-06-02",
+    buyersInterested: 4,
+  },
+  {
+    id: "lst_002",
+    title: "Hybrid wheat yield records - Northern Plains",
+    cropType: "Wheat",
+    region: "Northern Plains",
+    price: 250,
+    status: "sold",
+    uploadedDate: "2026-05-18",
+    buyersInterested: 1,
+  },
+  {
+    id: "lst_003",
+    title: "Rice paddy nitrogen levels - Lowveld",
+    cropType: "Rice",
+    region: "Lowveld",
+    price: 90,
+    status: "draft",
+    uploadedDate: "2026-07-10",
+    buyersInterested: 0,
+  },
+  {
+    id: "lst_004",
+    title: "Cassava root growth sensor data - Central Region",
+    cropType: "Cassava",
+    region: "Central Region",
+    price: 60,
+    status: "live",
+    uploadedDate: "2026-07-01",
+    buyersInterested: 2,
+  },
+  {
+    id: "lst_005",
+    title: "Sorghum drought resilience trial - Southern Province",
+    cropType: "Sorghum",
+    region: "Southern Province",
+    price: 180,
+    status: "withdrawn",
+    uploadedDate: "2026-04-22",
+    buyersInterested: 0,
+  },
+  {
+    id: "lst_006",
+    title: "Soybean pest incidence log - Copperbelt",
+    cropType: "Soybean",
+    region: "Copperbelt",
+    price: 75,
+    status: "live",
+    uploadedDate: "2026-06-25",
+    buyersInterested: 6,
+  },
+];
