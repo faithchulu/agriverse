@@ -7,11 +7,10 @@ export type TransactionStatus =
 
 export interface Transaction {
   id: string;
-  buyerName: string;
+  sellerName: string;
   datasetTitle: string;
   licenseType: string;
   amount: number;
   status: TransactionStatus;
   date: string; // ISO date
 }
-

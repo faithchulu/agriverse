@@ -69,7 +69,7 @@ export const farmerNav: NavSection[] = [
   {
     title: "Account",
     items: [
-      { label: "Wallet", href: "/farmer/wallet", icon: WalletIcon },
+      { label: "Wallet", href: "/farmer/sales/payouts", icon: WalletIcon },
       { label: "Account", href: "/farmer/account", icon: UserCircleIcon },
       { label: "Help", href: "/farmer/help", icon: QuestionMarkCircleIcon },
     ],

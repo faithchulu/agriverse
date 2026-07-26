@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import SidebarLinkGroup from "./SidebarLinkGroup";
 import { getNavForRole, ROLE_STORAGE_KEY, type Role } from "./navConfig";
+import Image from "next/image";
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -91,9 +92,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       {/* <!-- SIDEBAR HEADER --> */}
       <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D9A441] text-sm font-bold text-[#1B3A2B]">
+          {/* <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D9A441] text-sm font-bold text-[#1B3A2B]">
             A
-          </span>
+          </span> */}
+          <Image src="/images/logo/Logo.png" alt="AgriVerse Logo" width={50} height={50} />
           <span className="font-display text-lg font-semibold text-[#FAF7EE]">
             AgriVerse
           </span>
