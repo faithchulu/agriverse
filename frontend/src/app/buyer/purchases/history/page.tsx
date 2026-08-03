@@ -16,7 +16,7 @@ export default function Home() {
             Purchase history
           </h1>
           <p className="mt-1 text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-            Every dataset you've bought, and what you paid for it.
+            Every dataset you&apos;ve bought, and what you paid for it.
           </p>
         </div>
 

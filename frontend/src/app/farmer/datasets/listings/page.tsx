@@ -17,7 +17,7 @@ export default function Home() {
               My listings
             </h1>
             <p className="mt-1 text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-              Track and manage the datasets you've listed on the marketplace.
+              Track and manage the datasets you&apos;ve listed on the marketplace.
             </p>
           </div>
         </div>
