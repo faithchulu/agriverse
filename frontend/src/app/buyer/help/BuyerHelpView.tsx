@@ -88,7 +88,7 @@ function SupportForm() {
         <CheckCircleIcon className="h-8 w-8 text-[#2F5F3F]" />
         <p className="font-medium text-[#1B3A2B]">Request sent</p>
         <p className="max-w-sm text-sm text-[#3B2F22]/60">
-          We've logged your issue and will follow up by email.
+          We&apos;ve logged your issue and will follow up by email.
         </p>
         <button
           type="button"

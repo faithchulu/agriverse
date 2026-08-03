@@ -115,7 +115,7 @@ const RecentBuyerInterest: React.FC = () => {
                   {item.buyerName}
                 </h5>
                 <p className="text-xs text-[#3B2F22]/60 dark:text-bodydark2">
-                  {ACTION_LABEL[item.action]} "{item.datasetTitle}"
+                  {ACTION_LABEL[item.action]} &quot;{item.datasetTitle}&quot;
                   <span className="text-[#3B2F22]/40"> · {formatTimeAgo(item.minutesAgo)}</span>
                 </p>
               </div>

@@ -94,7 +94,7 @@ export default function UploadForm() {
           Dataset saved
         </p>
         <p className="max-w-sm text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-          "{form.title || "Untitled dataset"}" has been added to your
+          &quot;{form.title || "Untitled dataset"}&quot; has been added to your
           listings. You can edit or publish it from the listings page.
         </p>
         <button

@@ -16,7 +16,7 @@ export default function Home() {
             Help
           </h1>
           <p className="mt-1 text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-            How buying and licensing work, and how to reach us if something's
+            How buying and licensing work, and how to reach us if something&apos;s
             wrong.
           </p>
         </div>
