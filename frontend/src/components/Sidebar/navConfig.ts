@@ -104,7 +104,7 @@ export const buyerNav: NavSection[] = [
   {
     title: "Account",
     items: [
-      { label: "Wallet", href: "/buyer/wallet", icon: WalletIcon },
+      { label: "Wallet", href: "/buyer/purchases/history", icon: WalletIcon },
       { label: "Account", href: "/buyer/account", icon: UserCircleIcon },
       { label: "Help", href: "/buyer/help", icon: QuestionMarkCircleIcon },
     ],

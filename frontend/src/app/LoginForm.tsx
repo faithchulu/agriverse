@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export function LoginForm() {
@@ -101,13 +102,19 @@ export function LoginForm() {
         </p>
       )}
 
-      <button
+      {/* <button
         type="submit"
         disabled={isSubmitting}
         className="w-full rounded-md bg-[#2F5F3F] py-2.5 text-sm font-medium text-[#FAF7EE] transition-colors hover:bg-[#1B3A2B] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/40 focus:ring-offset-2 disabled:opacity-60"
       >
         {isSubmitting ? "Signing in…" : "Sign in"}
-      </button>
+      </button> */}
+     <Link
+        href="/farmer/dashboard"
+        className="mt-10 inline-flex w-95 items-center justify-center rounded-md bg-[#2F5F3F] py-2.5 text-sm font-medium text-[#FAF7EE] transition-colors hover:bg-[#1B3A2B] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/40 focus:ring-offset-2 disabled:opacity-60"
+      >
+        {isSubmitting ? "Signing in…" : "Sign in"}
+      </Link>
     </form>
   );
 }
