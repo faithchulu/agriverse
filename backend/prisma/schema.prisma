@@ -1,0 +1,233 @@
+// AgriVerse — DB-only phase schema.
+// No blockchain fields yet (no contract_address, tx_hash, wallet_address).
+// Those get added to Transaction/License once smart contracts are wired in.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  FARMER
+  BUYER
+}
+
+enum DatasetStatus {
+  DRAFT
+  LIVE
+  SOLD
+  WITHDRAWN
+}
+
+enum LicenseType {
+  ONE_TIME
+  TIME_LIMITED
+  RESEARCH_ONLY
+}
+
+enum LicenseState {
+  ACTIVE
+  EXPIRED
+  USED
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  RELEASED
+  DISPUTED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+// ---------- Core ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  farmerProfile FarmerProfile?
+  buyerProfile  BuyerProfile?
+
+  datasets      Dataset[]     @relation("FarmerDatasets")
+  farmerTxns    Transaction[] @relation("FarmerTransactions")
+  buyerTxns     Transaction[] @relation("BuyerTransactions")
+  payouts       Payout[]
+  licenses      License[]
+  reviewsGiven  Review[]      @relation("ReviewsByBuyer")
+  reviewsAbout  Review[]      @relation("ReviewsAboutFarmer")
+  disputesRaised Dispute[]    @relation("DisputesRaisedBy")
+
+  @@map("users")
+}
+
+model FarmerProfile {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  farmName     String?
+  farmLocation String?
+  phone        String?
+  bio          String?
+
+  @@map("farmer_profiles")
+}
+
+model BuyerProfile {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactName      String
+  organizationName String?
+  organizationType String?
+  phone            String?
+  bio              String?
+  verified         Boolean @default(false)
+
+  @@map("buyer_profiles")
+}
+
+// ---------- Listings ----------
+
+model Dataset {
+  id             String        @id @default(cuid())
+  farmerId       String
+  farmer         User          @relation("FarmerDatasets", fields: [farmerId], references: [id])
+  title          String
+  cropType       String
+  region         String
+  sampleDateFrom DateTime?
+  sampleDateTo   DateTime?
+  samplingMethod String?
+  description    String?
+  filePath       String?
+  fileHash       String?
+  licenseType    LicenseType
+  price          Decimal       @db.Decimal(10, 2)
+  status         DatasetStatus @default(DRAFT)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  transactions Transaction[]
+  licenses     License[]
+  reviews      Review[]
+
+  @@index([farmerId])
+  @@index([status])
+  @@map("datasets")
+}
+
+// ---------- Transactions / escrow simulation ----------
+
+model Transaction {
+  id          String            @id @default(cuid())
+  datasetId   String
+  dataset     Dataset           @relation(fields: [datasetId], references: [id])
+  buyerId     String
+  buyer       User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  farmerId    String
+  farmer      User              @relation("FarmerTransactions", fields: [farmerId], references: [id])
+  licenseType LicenseType
+  amount      Decimal           @db.Decimal(10, 2)
+  status      TransactionStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  license License?
+  review  Review?
+  dispute Dispute?
+
+  @@index([buyerId])
+  @@index([farmerId])
+  @@index([status])
+  @@map("transactions")
+}
+
+model License {
+  id            String       @id @default(cuid())
+  transactionId String       @unique
+  transaction   Transaction  @relation(fields: [transactionId], references: [id])
+  buyerId       String
+  buyer         User         @relation(fields: [buyerId], references: [id])
+  datasetId     String
+  dataset       Dataset      @relation(fields: [datasetId], references: [id])
+  licenseKind   LicenseType
+  grantedAt     DateTime     @default(now())
+  expiresAt     DateTime?
+  state         LicenseState @default(ACTIVE)
+
+  @@index([buyerId])
+  @@map("licenses")
+}
+
+// ---------- Payouts ----------
+
+model Payout {
+  id        String       @id @default(cuid())
+  farmerId  String
+  farmer    User         @relation(fields: [farmerId], references: [id])
+  amount    Decimal      @db.Decimal(10, 2)
+  method    String
+  status    PayoutStatus @default(PENDING)
+  reference String
+  createdAt DateTime     @default(now())
+
+  @@index([farmerId])
+  @@map("payouts")
+}
+
+// ---------- Reputation ----------
+
+model Review {
+  id            String      @id @default(cuid())
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  datasetId     String
+  dataset       Dataset     @relation(fields: [datasetId], references: [id])
+  buyerId       String
+  buyer         User        @relation("ReviewsByBuyer", fields: [buyerId], references: [id])
+  farmerId      String
+  farmer        User        @relation("ReviewsAboutFarmer", fields: [farmerId], references: [id])
+  rating        Int
+  comment       String?
+  createdAt     DateTime    @default(now())
+
+  @@index([farmerId])
+  @@map("reviews")
+}
+
+model Dispute {
+  id            String        @id @default(cuid())
+  transactionId String        @unique
+  transaction   Transaction   @relation(fields: [transactionId], references: [id])
+  raisedById    String
+  raisedBy      User          @relation("DisputesRaisedBy", fields: [raisedById], references: [id])
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("disputes")
+}
