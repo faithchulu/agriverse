@@ -7,6 +7,12 @@ function toEnumCase(value) {
     : value;
 }
 
-// Wrap a specific field's raw value before it enters the rest of the
-// object schema — use inside z.object({ field: z.preprocess(toEnumCase, z.enum([...])) })
-module.exports = { toEnumCase };
+// The reverse — for shaping API responses back into what the frontend's
+// TypeScript types expect (e.g. licenseType: "one-time", not "ONE_TIME").
+function fromEnumCase(value) {
+  return typeof value === "string"
+    ? value.toLowerCase().replace(/_/g, "-")
+    : value;
+}
+
+module.exports = { toEnumCase, fromEnumCase };

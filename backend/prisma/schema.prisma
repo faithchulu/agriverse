@@ -152,6 +152,8 @@ model Transaction {
   licenseType LicenseType
   amount      Decimal           @db.Decimal(10, 2)
   status      TransactionStatus @default(PENDING)
+  payoutId    String?
+  payout      Payout?           @relation(fields: [payoutId], references: [id])
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -162,6 +164,7 @@ model Transaction {
   @@index([buyerId])
   @@index([farmerId])
   @@index([status])
+  @@index([payoutId])
   @@map("transactions")
 }
 
@@ -193,6 +196,8 @@ model Payout {
   status    PayoutStatus @default(PENDING)
   reference String
   createdAt DateTime     @default(now())
+
+  transactions Transaction[]
 
   @@index([farmerId])
   @@map("payouts")
