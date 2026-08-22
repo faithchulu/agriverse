@@ -39,11 +39,11 @@ app.get(
 
 app.use("/api/auth", require("./modules/auth/auth.routes"));
 app.use("/api/users", require("./modules/users/user.routes"));
+app.use("/api/datasets", require("./modules/datasets/dataset.routes"));
 
 // ---------- Module routes ----------
 // Mounted here as each module is built.
 //
-// app.use("/api/datasets", require("./modules/datasets/dataset.routes"));
 // app.use("/api/marketplace", require("./modules/marketplace/marketplace.routes"));
 // app.use("/api/payments", require("./modules/payments/payment.routes"));
 // app.use("/api/analytics", require("./modules/analytics/analytics.routes"));

@@ -13,6 +13,11 @@ function errorMiddleware(err, req, res, next) {
     return error(res, `Duplicate value for: ${err.meta?.target}`, 409);
   }
 
+  // Multer's own errors (file too large, unexpected field, etc.)
+  if (err.name === "MulterError") {
+    return error(res, `Upload error: ${err.message}`, 400);
+  }
+
   const status = err.status || 500;
   const message =
     status === 500 ? "Something went wrong" : err.message || "Request failed";
