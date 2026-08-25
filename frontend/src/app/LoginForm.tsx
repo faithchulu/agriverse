@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../lib/auth/AuthContext";
+import { extractErrorMessage } from "../lib/api/types";
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -10,21 +12,19 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { login } = useAuth();
+  const router = useRouter();
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
     try {
-      // Replace with a call to the Express backend, e.g.:
-      // const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ email, password }),
-      // });
-      // if (!res.ok) throw new Error("Invalid email or password");
+      const user = await login(email, password);
+      router.push(user.role === "FARMER" ? "/farmer/dashboard" : "/buyer/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -102,19 +102,13 @@ export function LoginForm() {
         </p>
       )}
 
-      {/* <button
+      <button
         type="submit"
         disabled={isSubmitting}
         className="w-full rounded-md bg-[#2F5F3F] py-2.5 text-sm font-medium text-[#FAF7EE] transition-colors hover:bg-[#1B3A2B] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/40 focus:ring-offset-2 disabled:opacity-60"
       >
         {isSubmitting ? "Signing in…" : "Sign in"}
-      </button> */}
-     <Link
-        href="/farmer/dashboard"
-        className="mt-10 inline-flex w-95 items-center justify-center rounded-md bg-[#2F5F3F] py-2.5 text-sm font-medium text-[#FAF7EE] transition-colors hover:bg-[#1B3A2B] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/40 focus:ring-offset-2 disabled:opacity-60"
-      >
-        {isSubmitting ? "Signing in…" : "Sign in"}
-      </Link>
+      </button>
     </form>
   );
 }

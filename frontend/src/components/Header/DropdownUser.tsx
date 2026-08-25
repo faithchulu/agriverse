@@ -9,12 +9,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
-import { ROLE_STORAGE_KEY, type Role } from "@/components/Sidebar/navConfig";
-
-const ROLE_PROFILE: Record<Role, { name: string; title: string }> = {
-  farmer: { name: "Chanda Mwansa", title: "Farmer" },
-  buyer: { name: "Dr. Lweendo Banda", title: "Buyer" },
-};
+import { useAuth } from "../../lib/auth/AuthContext";
 
 function initials(name: string) {
   return name
@@ -28,16 +23,11 @@ function initials(name: string) {
 
 const DropdownUser = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [role, setRole] = useState<Role>("farmer");
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(ROLE_STORAGE_KEY);
-    if (stored === "farmer" || stored === "buyer") setRole(stored);
-  }, []);
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
@@ -63,9 +53,21 @@ const DropdownUser = () => {
     return () => document.removeEventListener("keydown", keyHandler);
   });
 
-  const { name, title } = ROLE_PROFILE[role];
+  // AuthGate guarantees `user` is set before this section renders — this
+  // fallback only covers the brief instant before that check resolves.
+  if (!user) return null;
+
+  const role = user.role === "BUYER" ? "buyer" : "farmer";
+  const name =
+    user.farmerProfile?.fullName || user.buyerProfile?.contactName || user.email;
+  const title = role === "buyer" ? "Buyer" : "Farmer";
   const accountHref = `/${role}/account`;
   const helpHref = `/${role}/help`;
+
+  function handleLogout() {
+    logout();
+    router.push("/login");
+  }
 
   return (
     <div className="relative">
@@ -119,7 +121,7 @@ const DropdownUser = () => {
           </li>
         </ul>
         <button
-          onClick={() => router.push("/")}
+          onClick={handleLogout}
           className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-[#3B2F22]/80 hover:text-[#A32D2D] dark:text-bodydark2"
         >
           <ArrowLeftStartOnRectangleIcon className="h-5 w-5" />

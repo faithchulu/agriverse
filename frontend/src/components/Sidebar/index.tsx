@@ -6,11 +6,10 @@ import Link from "next/link";
 import {
   XMarkIcon,
   ChevronDownIcon,
-  ArrowsRightLeftIcon,
 } from "@heroicons/react/24/outline";
 import SidebarLinkGroup from "./SidebarLinkGroup";
-import { getNavForRole, ROLE_STORAGE_KEY, type Role } from "./navConfig";
-import Image from "next/image";
+import { getNavForRole } from "./navConfig";
+import { useAuth } from "../../lib/auth/AuthContext";
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -23,27 +22,18 @@ function isChildActive(href: string, pathname: string) {
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
-  // Temporary role switch — stands in for real auth. Once login exists,
-  // this should read the logged-in user's role instead of localStorage.
-  const [role, setRole] = useState<Role>("farmer");
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(ROLE_STORAGE_KEY);
-    if (stored === "farmer" || stored === "buyer") {
-      setRole(stored);
-    }
-  }, []);
-
-  const handleRoleChange = (next: Role) => {
-    setRole(next);
-    window.localStorage.setItem(ROLE_STORAGE_KEY, next);
-  };
+  // Real role from the logged-in user. AuthGate (app/farmer/layout.tsx,
+  // app/buyer/layout.tsx) guarantees `user` is set and matches the current
+  // section before this ever renders, so this fallback is just for the
+  // brief instant before that check resolves.
+  const role = user?.role === "BUYER" ? "buyer" : "farmer";
 
   // close on click outside
   useEffect(() => {
@@ -92,10 +82,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       {/* <!-- SIDEBAR HEADER --> */}
       <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
         <Link href="/" className="flex items-center gap-2">
-          {/* <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D9A441] text-sm font-bold text-[#1B3A2B]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D9A441] text-sm font-bold text-[#1B3A2B]">
             A
-          </span> */}
-          <Image src="/images/logo/Logo.png" alt="AgriVerse Logo" width={50} height={50} />
+          </span>
           <span className="font-display text-lg font-semibold text-[#FAF7EE]">
             AgriVerse
           </span>
@@ -112,39 +101,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         </button>
       </div>
       {/* <!-- SIDEBAR HEADER --> */}
-
-      {/* <!-- ROLE TOGGLE (temporary, until real auth exists) --> */}
-      <div className="px-6">
-        <div className="flex items-center gap-1.5 rounded-md bg-[#14261C]/60 p-1 ring-1 ring-[#8FBF9F]/20">
-          <button
-            type="button"
-            onClick={() => handleRoleChange("farmer")}
-            className={`flex-1 rounded-sm px-3 py-1.5 text-xs font-medium transition-colors ${
-              role === "farmer"
-                ? "bg-[#2F5F3F] text-white"
-                : "text-[#EAF6EC]/60 hover:text-white"
-            }`}
-          >
-            Farmer
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRoleChange("buyer")}
-            className={`flex-1 rounded-sm px-3 py-1.5 text-xs font-medium transition-colors ${
-              role === "buyer"
-                ? "bg-[#2F5F3F] text-white"
-                : "text-[#EAF6EC]/60 hover:text-white"
-            }`}
-          >
-            Buyer
-          </button>
-        </div>
-        <p className="mt-2 flex items-center gap-1 text-[10px] uppercase tracking-wide text-[#8FBF9F]/60">
-          <ArrowsRightLeftIcon className="h-3 w-3" />
-          Demo role switch — no auth yet
-        </p>
-      </div>
-      {/* <!-- ROLE TOGGLE --> */}
 
       <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
         <nav className="mt-5 px-4 py-4 lg:mt-6 lg:px-6">

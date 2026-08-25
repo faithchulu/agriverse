@@ -2,24 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BellIcon } from "@heroicons/react/24/outline";
-import {
-  ROLE_STORAGE_KEY,
-  type Role,
-} from "@/components/Sidebar/navConfig";
-import { farmerNotifications, buyerNotifications, NOTIFICATION_STYLES } from "./notifications-data";
+import { farmerNotifications, buyerNotifications } from "./notifications-data";
+import { useAuth } from "../../lib/auth/AuthContext";
 
 const DropdownNotification = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifying, setNotifying] = useState(true);
-  const [role, setRole] = useState<Role>("farmer");
+  const { user } = useAuth();
+  const role = user?.role === "BUYER" ? "buyer" : "farmer";
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(ROLE_STORAGE_KEY);
-    if (stored === "farmer" || stored === "buyer") setRole(stored);
-  }, []);
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
@@ -83,14 +76,12 @@ const DropdownNotification = () => {
 
         <ul className="flex h-auto flex-col overflow-y-auto">
           {notifications.map((n) => {
-            const { icon: Icon, bg, fg } = NOTIFICATION_STYLES[n.type];
+            const Icon = n.icon;
             return (
               <li key={n.id}>
                 <div className="flex gap-3 border-t border-[#3B2F22]/10 px-4.5 py-3 hover:bg-[#EAF3DE]/60 dark:border-strokedark dark:hover:bg-meta-4">
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${bg}`}
-                  >
-                    <Icon className={`h-4 w-4 ${fg}`} />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF3DE] text-[#2F5F3F] dark:bg-[#2F5F3F]/30 dark:text-[#8FBF9F]">
+                    <Icon className="h-4 w-4" />
                   </span>
                   <div>
                     <p className="text-sm text-[#1B3A2B] dark:text-white">
