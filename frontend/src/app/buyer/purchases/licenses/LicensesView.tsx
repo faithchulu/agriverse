@@ -7,15 +7,15 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { dummyLicenses } from "./dummy-data";
-import type { License, LicenseKind, LicenseState } from "../../../../types/Licensing";
+import type { License, LicenseType, LicenseState } from "../../../../types/Licensing";
 
-const KIND_LABEL: Record<LicenseKind, string> = {
+const KIND_LABEL: Record<LicenseType, string> = {
   "one-time": "One-time download",
   "time-limited": "Time-limited access",
   "research-only": "Research use only",
 };
 
-const KIND_STYLES: Record<LicenseKind, string> = {
+const KIND_STYLES: Record<LicenseType, string> = {
   "one-time": "bg-[#EAF3DE] text-[#2F5F3F]",
   "time-limited": "bg-[#FAEEDA] text-[#854F0B]",
   "research-only": "bg-[#E6F1FB] text-[#0C447C]",

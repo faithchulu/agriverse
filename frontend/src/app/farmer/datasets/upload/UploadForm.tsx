@@ -115,7 +115,10 @@ export default function UploadForm() {
           Dataset saved
         </p>
         <p className="max-w-sm text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-          "{form.title || "Untitled dataset"}" has been added to your
+          <span className="font-medium text-[#1B3A2B] dark:text-white">
+            {form.title || "Untitled dataset"}
+          </span>{" "}
+          has been added to your
           listings. You can edit or publish it from the listings page.
         </p>
         <button
@@ -215,7 +218,7 @@ export default function UploadForm() {
             required
             value={form.title}
             onChange={(e) => update("title", e.target.value)}
-            placeholder="e.g. Maize soil moisture - Eastern Province, 2025"
+            placeholder="e.g. Maize soil moisture — Eastern Province, 2025"
             className="w-full rounded-md border border-[#3B2F22]/20 px-3.5 py-2.5 text-sm text-[#1B3A2B] placeholder:text-[#3B2F22]/35 focus:border-[#2F5F3F] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/30 dark:border-strokedark dark:bg-form-input dark:text-white"
           />
         </div>
@@ -337,7 +340,7 @@ export default function UploadForm() {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1B3A2B] dark:text-white">
-              Price (ZMW)
+              Price (USD)
             </label>
             <input
               type="number"
