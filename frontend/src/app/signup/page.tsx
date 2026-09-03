@@ -36,8 +36,8 @@ export default function SignupPage() {
         <div className="absolute bottom-10 left-10 right-10">
           <p className="font-display text-3xl text-[#FAF7EE]">AgriVerse</p>
           <p className="mt-2 max-w-xs text-sm leading-relaxed text-[#FAF7EE]/75">
-            Join as a farmer to sell your data, or a buyer to license it — your
-            call.
+            Join as a farmer to sell your data, or a buyer to license it -
+            your call.
           </p>
         </div>
       </div>
@@ -52,7 +52,7 @@ export default function SignupPage() {
             Create your account
           </h1>
           <p className="mt-2 text-sm text-[#3B2F22]/60">
-            A couple of details and you're in.
+            A couple of details and you are in.
           </p>
 
           <SignupForm />
@@ -60,7 +60,7 @@ export default function SignupPage() {
           <p className="mt-8 text-center text-sm text-[#3B2F22]/60">
             Already have an account?{" "}
             <a
-              href="/"
+              href="/login"
               className="font-medium text-[#2F5F3F] underline-offset-4 hover:underline"
             >
               Sign in

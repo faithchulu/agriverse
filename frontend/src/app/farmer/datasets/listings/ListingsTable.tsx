@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MagnifyingGlassIcon,
-  PencilSquareIcon,
   NoSymbolIcon,
-  EyeIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
-import { dummyListings } from "./dummy-data";
-import type { Listing, ListingStatus } from "../../../../types/Listing";
+import { datasetsApi, type FarmerDataset, type DatasetStatus } from "../../../../lib/api/datasets";
+import { extractErrorMessage } from "../../../../lib/api/types";
 
-const TABS: { label: string; value: ListingStatus | "all" }[] = [
+const TABS: { label: string; value: DatasetStatus | "all" }[] = [
   { label: "All", value: "all" },
   { label: "Draft", value: "draft" },
   { label: "Live", value: "live" },
@@ -18,7 +17,7 @@ const TABS: { label: string; value: ListingStatus | "all" }[] = [
   { label: "Withdrawn", value: "withdrawn" },
 ];
 
-const STATUS_STYLES: Record<ListingStatus, string> = {
+const STATUS_STYLES: Record<DatasetStatus, string> = {
   draft: "bg-[#3B2F22]/10 text-[#3B2F22]",
   live: "bg-[#EAF3DE] text-[#2F5F3F]",
   sold: "bg-[#FAEEDA] text-[#854F0B]",
@@ -34,11 +33,29 @@ function formatDate(iso: string) {
 }
 
 export default function ListingsTable() {
-  const [listings, setListings] = useState<Listing[]>(dummyListings);
-  const [tab, setTab] = useState<ListingStatus | "all">("all");
+  const [listings, setListings] = useState<FarmerDataset[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [tab, setTab] = useState<DatasetStatus | "all">("all");
   const [query, setQuery] = useState("");
 
+  useEffect(() => {
+    let cancelled = false;
+    datasetsApi
+      .listMine()
+      .then((data) => {
+        if (!cancelled) setListings(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(extractErrorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
+    if (!listings) return [];
     return listings.filter((l) => {
       const matchesTab = tab === "all" || l.status === tab;
       const matchesQuery =
@@ -50,10 +67,31 @@ export default function ListingsTable() {
     });
   }, [listings, tab, query]);
 
-  function withdrawListing(id: string) {
-    // TODO: replace with `await axios.patch(`/api/farmer/listings/${id}`, { status: "withdrawn" })`
-    setListings((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, status: "withdrawn" } : l)),
+  async function withdrawListing(id: string) {
+    setActionError(null);
+    try {
+      const updated = await datasetsApi.withdraw(id);
+      setListings((prev) => prev?.map((l) => (l.id === id ? updated : l)) ?? null);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    }
+  }
+
+  async function deleteListing(id: string) {
+    setActionError(null);
+    try {
+      await datasetsApi.remove(id);
+      setListings((prev) => prev?.filter((l) => l.id !== id) ?? null);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+        Couldn't load your listings: {loadError}
+      </div>
     );
   }
 
@@ -89,6 +127,12 @@ export default function ListingsTable() {
         </div>
       </div>
 
+      {actionError && (
+        <p className="border-b border-[#3B2F22]/10 px-4 py-2 text-sm text-[#A32D2D] dark:border-strokedark">
+          {actionError}
+        </p>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
@@ -99,83 +143,79 @@ export default function ListingsTable() {
               <th className="px-4 py-3 font-medium">Price</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Uploaded</th>
-              <th className="px-4 py-3 font-medium">Interest</th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((listing) => (
-              <tr
-                key={listing.id}
-                className="border-b border-[#3B2F22]/5 last:border-0 dark:border-strokedark"
-              >
-                <td className="max-w-xs px-4 py-3">
-                  <p className="font-medium text-[#1B3A2B] dark:text-white">
-                    {listing.title}
-                  </p>
-                  <p className="text-xs text-[#3B2F22]/50 dark:text-bodydark2">
-                    {listing.cropType}
-                  </p>
-                </td>
-                <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
-                  {listing.region}
-                </td>
-                <td className="px-4 py-3 text-[#1B3A2B] dark:text-white">
-                  ZMW {listing.price.toFixed(2)}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-                      STATUS_STYLES[listing.status]
-                    }`}
-                  >
-                    {listing.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
-                  {formatDate(listing.uploadedDate)}
-                </td>
-                <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
-                  {listing.buyersInterested}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    {(listing.status === "draft" ||
-                      listing.status === "live") && (
-                      <button
-                        title="Edit listing"
-                        className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#EAF3DE] hover:text-[#2F5F3F]"
-                      >
-                        <PencilSquareIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                    {listing.status === "live" && (
-                      <button
-                        title="Withdraw listing"
-                        onClick={() => withdrawListing(listing.id)}
-                        className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#FCEBEB] hover:text-[#A32D2D]"
-                      >
-                        <NoSymbolIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                    {(listing.status === "sold" ||
-                      listing.status === "withdrawn") && (
-                      <button
-                        title="View listing"
-                        className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#EAF3DE] hover:text-[#2F5F3F]"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+            {listings === null && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#3B2F22]/40">
+                  Loading…
                 </td>
               </tr>
-            ))}
+            )}
 
-            {filtered.length === 0 && (
+            {listings !== null &&
+              filtered.map((listing) => (
+                <tr
+                  key={listing.id}
+                  className="border-b border-[#3B2F22]/5 last:border-0 dark:border-strokedark"
+                >
+                  <td className="max-w-xs px-4 py-3">
+                    <p className="font-medium text-[#1B3A2B] dark:text-white">
+                      {listing.title}
+                    </p>
+                    <p className="text-xs text-[#3B2F22]/50 dark:text-bodydark2">
+                      {listing.cropType}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
+                    {listing.region}
+                  </td>
+                  <td className="px-4 py-3 text-[#1B3A2B] dark:text-white">
+                    ${listing.price.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+                        STATUS_STYLES[listing.status]
+                      }`}
+                    >
+                      {listing.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
+                    {formatDate(listing.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      {listing.status === "live" && (
+                        <button
+                          title="Withdraw listing"
+                          onClick={() => withdrawListing(listing.id)}
+                          className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#FCEBEB] hover:text-[#A32D2D]"
+                        >
+                          <NoSymbolIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                      {listing.status === "draft" && (
+                        <button
+                          title="Delete draft"
+                          onClick={() => deleteListing(listing.id)}
+                          className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#FCEBEB] hover:text-[#A32D2D]"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+            {listings !== null && filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={6}
                   className="px-4 py-10 text-center text-sm text-[#3B2F22]/50 dark:text-bodydark2"
                 >
                   No listings match this filter.

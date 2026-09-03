@@ -7,6 +7,9 @@ import {
   XMarkIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
+import { datasetsApi } from "../../../../lib/api/datasets";
+import { extractErrorMessage } from "../../../../lib/api/types";
+import type { LicenseType } from "../../../../types/Licensing"
 
 const CROP_TYPES = [
   "Maize",
@@ -60,6 +63,7 @@ export default function UploadForm() {
   const [isDragging, setIsDragging] = useState(false);
   const [form, setForm] = useState<FormState>(initialState);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -73,17 +77,34 @@ export default function UploadForm() {
 
   async function handleSubmit(e: React.FormEvent, asDraft: boolean) {
     e.preventDefault();
+    setError(null);
     setStatus("saving");
 
-    // TODO: replace with a real request once the backend exists, e.g.
-    // const body = new FormData();
-    // body.append("file", file!);
-    // body.append("metadata", JSON.stringify({ ...form, status: asDraft ? "draft" : "live" }));
-    // await axios.post("/api/farmer/datasets", body);
+    if (!file) {
+      setError("Select a dataset file before submitting.");
+      setStatus("idle");
+      return;
+    }
 
-    await new Promise((resolve) => setTimeout(resolve, 700));
-
-    setStatus("saved");
+    try {
+      await datasetsApi.create({
+        title: form.title,
+        cropType: form.cropType,
+        region: form.region,
+        sampleDateFrom: form.dateFrom || undefined,
+        sampleDateTo: form.dateTo || undefined,
+        samplingMethod: form.samplingMethod || undefined,
+        description: form.description || undefined,
+        licenseType: form.licenseType as LicenseType,
+        price: Number(form.price),
+        status: asDraft ? "draft" : "live",
+        file,
+      });
+      setStatus("saved");
+    } catch (err) {
+      setError(extractErrorMessage(err));
+      setStatus("idle");
+    }
   }
 
   if (status === "saved") {
@@ -94,7 +115,7 @@ export default function UploadForm() {
           Dataset saved
         </p>
         <p className="max-w-sm text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-          &quot;{form.title || "Untitled dataset"}&quot; has been added to your
+          "{form.title || "Untitled dataset"}" has been added to your
           listings. You can edit or publish it from the listings page.
         </p>
         <button
@@ -102,6 +123,7 @@ export default function UploadForm() {
           onClick={() => {
             setForm(initialState);
             setFile(null);
+            setError(null);
             setStatus("idle");
           }}
           className="mt-2 rounded-md bg-[#2F5F3F] px-4 py-2 text-sm font-medium text-white hover:bg-[#1B3A2B]"
@@ -193,7 +215,7 @@ export default function UploadForm() {
             required
             value={form.title}
             onChange={(e) => update("title", e.target.value)}
-            placeholder="e.g. Maize soil moisture — Eastern Province, 2025"
+            placeholder="e.g. Maize soil moisture - Eastern Province, 2025"
             className="w-full rounded-md border border-[#3B2F22]/20 px-3.5 py-2.5 text-sm text-[#1B3A2B] placeholder:text-[#3B2F22]/35 focus:border-[#2F5F3F] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/30 dark:border-strokedark dark:bg-form-input dark:text-white"
           />
         </div>
@@ -330,6 +352,12 @@ export default function UploadForm() {
           </div>
         </div>
       </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-[#B4442E]">
+          {error}
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex flex-col-reverse gap-3 border-t border-[#3B2F22]/10 pt-5 sm:flex-row sm:justify-end dark:border-strokedark">

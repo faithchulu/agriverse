@@ -39,20 +39,11 @@ export function SignupForm() {
     const input: RegisterInput =
       role === "farmer"
         ? { role: "farmer", email, password, fullName, farmName, farmLocation }
-        : {
-            role: "buyer",
-            email,
-            password,
-            contactName,
-            organizationName,
-            organizationType,
-          };
+        : { role: "buyer", email, password, contactName, organizationName, organizationType };
 
     try {
       const user = await register(input);
-      router.push(
-        user.role === "FARMER" ? "/farmer/dashboard" : "/buyer/dashboard",
-      );
+      router.push(user.role === "FARMER" ? "/farmer/dashboard" : "/buyer/dashboard");
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -71,23 +62,19 @@ export function SignupForm() {
           type="button"
           onClick={() => setRole("farmer")}
           className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
-            role === "farmer"
-              ? "bg-[#2F5F3F] text-white"
-              : "text-[#2F5F3F]/70 hover:text-[#1B3A2B]"
+            role === "farmer" ? "bg-[#2F5F3F] text-white" : "text-[#2F5F3F]/70 hover:text-[#1B3A2B]"
           }`}
         >
-          I'm a Farmer
+          I am a Farmer
         </button>
         <button
           type="button"
           onClick={() => setRole("buyer")}
           className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
-            role === "buyer"
-              ? "bg-[#2F5F3F] text-white"
-              : "text-[#2F5F3F]/70 hover:text-[#1B3A2B]"
+            role === "buyer" ? "bg-[#2F5F3F] text-white" : "text-[#2F5F3F]/70 hover:text-[#1B3A2B]"
           }`}
         >
-          I'm a Buyer
+          I am a Buyer
         </button>
       </div>
 

@@ -65,7 +65,7 @@ const BuyerDashboard: React.FC = () => {
     <>
       {error && (
         <div className="mb-4 rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
-          Couldn't load some dashboard data: {error}
+          Could not load some dashboard data: {error}
         </div>
       )}
 

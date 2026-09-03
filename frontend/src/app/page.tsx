@@ -15,7 +15,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "AgriVerse Marketplace",
-  description: "Sign in to AgriVerse — the marketplace for agricultural data.",
+  description: "Sign in to AgriVerse - the marketplace for agricultural data.",
 };
 
 function CropTag({
@@ -116,7 +116,7 @@ export default function LoginPage() {
         <div className="absolute bottom-10 left-10 right-10">
           <p className="font-display text-3xl text-[#FAF7EE]">AgriVerse</p>
           <p className="mt-2 max-w-xs text-sm leading-relaxed text-[#FAF7EE]/75">
-            Your soil data, your yields, your terms — shared and sold on
+            Your soil data, your yields, your terms - shared and sold on
             your say-so.
           </p>
         </div>

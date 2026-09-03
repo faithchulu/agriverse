@@ -1,8 +1,13 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const crypto = require("crypto");
 
-const UPLOAD_DIR = path.join(__dirname, "..", "..", "..", "uploads");
+const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
+
+// diskStorage never creates the destination folder itself — do it once
+// at startup so uploads do not fail with ENOENT on a fresh clone/machine.
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),

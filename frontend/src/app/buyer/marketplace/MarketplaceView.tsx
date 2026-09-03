@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MagnifyingGlassIcon,
   HeartIcon as HeartOutline,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid, StarIcon } from "@heroicons/react/24/solid";
-import { dummyMarketplaceListings } from "./dummy-data";
-import type { LicenseType, MarketplaceListing } from "../../../types/MarketplaceListing";
+import type { LicenseType } from "../../../types/Licensing";
+import { marketplaceApi, type ApiMarketplaceListing } from "../../../lib/api/marketplace";
+import { paymentsApi } from "../../../lib/api/payments";
+import { extractErrorMessage } from "../../../lib/api/types";
 
 const LICENSE_LABEL: Record<LicenseType, string> = {
   "one-time": "One-time download",
@@ -23,51 +25,62 @@ const LICENSE_STYLES: Record<LicenseType, string> = {
 };
 
 type SortOption = "newest" | "price-asc" | "price-desc";
-
-const CROP_TYPES = [
-  "All crops",
-  ...Array.from(new Set(dummyMarketplaceListings.map((l) => l.cropType))),
-];
-
-type PurchaseState = "idle" | "buying" | "purchased";
+type PurchaseState = "idle" | "buying" | "purchased" | "error";
 
 export default function MarketplaceView() {
+  const [listings, setListings] = useState<ApiMarketplaceListing[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [query, setQuery] = useState("");
   const [cropFilter, setCropFilter] = useState("All crops");
-  const [licenseFilter, setLicenseFilter] = useState<"all" | LicenseType>(
-    "all",
-  );
+  const [licenseFilter, setLicenseFilter] = useState<"all" | LicenseType>("all");
   const [sort, setSort] = useState<SortOption>("newest");
   const [saved, setSaved] = useState<Set<string>>(new Set());
-  const [purchaseStates, setPurchaseStates] = useState<
-    Record<string, PurchaseState>
-  >({});
+  const [purchaseStates, setPurchaseStates] = useState<Record<string, PurchaseState>>({});
+  const [purchaseErrors, setPurchaseErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    marketplaceApi
+      .browse({ limit: 50 })
+      .then((res) => {
+        if (!cancelled) setListings(res.items);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(extractErrorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cropTypes = useMemo(() => {
+    if (!listings) return ["All crops"];
+    return ["All crops", ...Array.from(new Set(listings.map((l) => l.cropType)))];
+  }, [listings]);
 
   const filtered = useMemo(() => {
-    let items = dummyMarketplaceListings.filter((l) => {
+    if (!listings) return [];
+
+    let items = listings.filter((l) => {
       const matchesQuery =
         query.trim() === "" ||
         l.title.toLowerCase().includes(query.toLowerCase()) ||
         l.region.toLowerCase().includes(query.toLowerCase()) ||
         l.sellerName.toLowerCase().includes(query.toLowerCase());
-      const matchesCrop =
-        cropFilter === "All crops" || l.cropType === cropFilter;
-      const matchesLicense =
-        licenseFilter === "all" || l.licenseType === licenseFilter;
+      const matchesCrop = cropFilter === "All crops" || l.cropType === cropFilter;
+      const matchesLicense = licenseFilter === "all" || l.licenseType === licenseFilter;
       return matchesQuery && matchesCrop && matchesLicense;
     });
 
     items = [...items].sort((a, b) => {
       if (sort === "price-asc") return a.price - b.price;
       if (sort === "price-desc") return b.price - a.price;
-      return (
-        new Date(b.uploadedDate).getTime() -
-        new Date(a.uploadedDate).getTime()
-      );
+      return new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime();
     });
 
     return items;
-  }, [query, cropFilter, licenseFilter, sort]);
+  }, [listings, query, cropFilter, licenseFilter, sort]);
 
   function toggleSaved(id: string) {
     setSaved((prev) => {
@@ -77,14 +90,39 @@ export default function MarketplaceView() {
     });
   }
 
-  async function handleBuy(id: string) {
-    setPurchaseStates((prev) => ({ ...prev, [id]: "buying" }));
+  // Chains three real backend calls (purchase → pay → release) so one
+  // "Buy" click produces a fully completed sale with an active license,
+  // matching what the UI has always promised. Known limitation: purchase
+  // reserves the dataset (flips it to SOLD) immediately — if `pay` or
+  // `release` fails partway through, the dataset stays reserved and the
+  // transaction sits at PENDING/PAID rather than rolling back. Fine for
+  // a demo; a production version would want this as one atomic backend
+  // operation, or a "resume" affordance for stuck transactions.
+  async function handleBuy(datasetId: string) {
+    setPurchaseStates((prev) => ({ ...prev, [datasetId]: "buying" }));
+    setPurchaseErrors((prev) => {
+      const next = { ...prev };
+      delete next[datasetId];
+      return next;
+    });
 
-    // TODO: replace with `await axios.post(`/api/marketplace/listings/${id}/purchase`)`
-    // once escrow/payment integration exists.
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    try {
+      const transaction = await paymentsApi.purchase(datasetId);
+      await paymentsApi.pay(transaction.id);
+      await paymentsApi.release(transaction.id);
+      setPurchaseStates((prev) => ({ ...prev, [datasetId]: "purchased" }));
+    } catch (err) {
+      setPurchaseStates((prev) => ({ ...prev, [datasetId]: "error" }));
+      setPurchaseErrors((prev) => ({ ...prev, [datasetId]: extractErrorMessage(err) }));
+    }
+  }
 
-    setPurchaseStates((prev) => ({ ...prev, [id]: "purchased" }));
+  if (loadError) {
+    return (
+      <div className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+        Couldn't load the marketplace: {loadError}
+      </div>
+    );
   }
 
   return (
@@ -107,7 +145,7 @@ export default function MarketplaceView() {
           onChange={(e) => setCropFilter(e.target.value)}
           className="rounded-md border border-[#3B2F22]/20 px-3 py-2 text-sm text-[#1B3A2B] focus:border-[#2F5F3F] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/30 dark:border-strokedark dark:bg-form-input dark:text-white"
         >
-          {CROP_TYPES.map((c) => (
+          {cropTypes.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -116,9 +154,7 @@ export default function MarketplaceView() {
 
         <select
           value={licenseFilter}
-          onChange={(e) =>
-            setLicenseFilter(e.target.value as "all" | LicenseType)
-          }
+          onChange={(e) => setLicenseFilter(e.target.value as "all" | LicenseType)}
           className="rounded-md border border-[#3B2F22]/20 px-3 py-2 text-sm text-[#1B3A2B] focus:border-[#2F5F3F] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/30 dark:border-strokedark dark:bg-form-input dark:text-white"
         >
           <option value="all">All license types</option>
@@ -139,7 +175,9 @@ export default function MarketplaceView() {
       </div>
 
       <p className="text-xs text-[#3B2F22]/50 dark:text-bodydark2">
-        {filtered.length} dataset{filtered.length !== 1 && "s"} available
+        {listings === null
+          ? "Loading…"
+          : `${filtered.length} dataset${filtered.length !== 1 ? "s" : ""} available`}
       </p>
 
       {/* Grid */}
@@ -151,11 +189,12 @@ export default function MarketplaceView() {
             isSaved={saved.has(listing.id)}
             onToggleSaved={() => toggleSaved(listing.id)}
             purchaseState={purchaseStates[listing.id] ?? "idle"}
+            purchaseError={purchaseErrors[listing.id]}
             onBuy={() => handleBuy(listing.id)}
           />
         ))}
 
-        {filtered.length === 0 && (
+        {listings !== null && filtered.length === 0 && (
           <p className="col-span-full py-10 text-center text-sm text-[#3B2F22]/50 dark:text-bodydark2">
             No datasets match your filters.
           </p>
@@ -170,12 +209,14 @@ function ListingCard({
   isSaved,
   onToggleSaved,
   purchaseState,
+  purchaseError,
   onBuy,
 }: {
-  listing: MarketplaceListing;
+  listing: ApiMarketplaceListing;
   isSaved: boolean;
   onToggleSaved: () => void;
   purchaseState: PurchaseState;
+  purchaseError?: string;
   onBuy: () => void;
 }) {
   return (
@@ -186,9 +227,7 @@ function ListingCard({
             {listing.cropType}
           </span>
           <span
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-              LICENSE_STYLES[listing.licenseType]
-            }`}
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${LICENSE_STYLES[listing.licenseType]}`}
           >
             {LICENSE_LABEL[listing.licenseType]}
           </span>
@@ -209,9 +248,7 @@ function ListingCard({
       <h3 className="mt-3 text-sm font-semibold leading-snug text-[#1B3A2B] dark:text-white">
         {listing.title}
       </h3>
-      <p className="mt-1 text-xs text-[#3B2F22]/50 dark:text-bodydark2">
-        {listing.region}
-      </p>
+      <p className="mt-1 text-xs text-[#3B2F22]/50 dark:text-bodydark2">{listing.region}</p>
 
       <div className="mt-3 flex items-center gap-1.5 text-xs text-[#3B2F22]/60 dark:text-bodydark2">
         <StarIcon className="h-3.5 w-3.5 text-[#D9A441]" />
@@ -220,7 +257,7 @@ function ListingCard({
 
       <div className="mt-4 flex items-center justify-between border-t border-[#3B2F22]/10 pt-3 dark:border-strokedark">
         <span className="text-lg font-semibold text-[#1B3A2B] dark:text-white">
-          ZMW {listing.price.toFixed(2)}
+          ${listing.price.toFixed(2)}
         </span>
 
         {purchaseState === "purchased" ? (
@@ -234,10 +271,18 @@ function ListingCard({
             disabled={purchaseState === "buying"}
             className="rounded-md bg-[#2F5F3F] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1B3A2B] disabled:opacity-60"
           >
-            {purchaseState === "buying" ? "Processing…" : "Buy"}
+            {purchaseState === "buying"
+              ? "Processing…"
+              : purchaseState === "error"
+                ? "Try again"
+                : "Buy"}
           </button>
         )}
       </div>
+
+      {purchaseState === "error" && purchaseError && (
+        <p className="mt-2 text-xs text-[#A32D2D]">{purchaseError}</p>
+      )}
     </div>
   );
 }

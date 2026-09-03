@@ -1,7 +1,30 @@
 const fs = require("fs/promises");
 const repo = require("./dataset.repository");
 const { hashFile } = require("../../utils/hash");
+const { fromEnumCase } = require("../../utils/normalize");
 const logger = require("../../utils/logger");
+
+// Deliberately whitelists fields — same reasoning as marketplace.service.js:
+// never spread the raw Prisma row, since that would leak filePath (a server
+// disk path) even to the owning farmer, who has no use for it.
+function shapeDataset(dataset) {
+  return {
+    id: dataset.id,
+    title: dataset.title,
+    cropType: dataset.cropType,
+    region: dataset.region,
+    sampleDateFrom: dataset.sampleDateFrom,
+    sampleDateTo: dataset.sampleDateTo,
+    samplingMethod: dataset.samplingMethod,
+    description: dataset.description,
+    licenseType: fromEnumCase(dataset.licenseType),
+    price: Number(dataset.price),
+    status: fromEnumCase(dataset.status),
+    fileHash: dataset.fileHash,
+    createdAt: dataset.createdAt,
+    updatedAt: dataset.updatedAt,
+  };
+}
 
 async function getOwnedOrThrow(farmerId, datasetId) {
   const dataset = await repo.findById(datasetId);
@@ -27,7 +50,7 @@ async function createDataset(farmerId, input, file) {
     fileHash = await hashFile(file.path);
   }
 
-  return repo.create({
+  const created = await repo.create({
     farmerId,
     title: input.title,
     cropType: input.cropType,
@@ -42,14 +65,18 @@ async function createDataset(farmerId, input, file) {
     filePath,
     fileHash,
   });
+
+  return shapeDataset(created);
 }
 
-function listMine(farmerId) {
-  return repo.findManyByFarmer(farmerId);
+async function listMine(farmerId) {
+  const datasets = await repo.findManyByFarmer(farmerId);
+  return datasets.map(shapeDataset);
 }
 
 async function getMine(farmerId, datasetId) {
-  return getOwnedOrThrow(farmerId, datasetId);
+  const dataset = await getOwnedOrThrow(farmerId, datasetId);
+  return shapeDataset(dataset);
 }
 
 async function updateDataset(farmerId, datasetId, input) {
@@ -63,7 +90,8 @@ async function updateDataset(farmerId, datasetId, input) {
     throw err;
   }
 
-  return repo.update(datasetId, input);
+  const updated = await repo.update(datasetId, input);
+  return shapeDataset(updated);
 }
 
 async function withdrawDataset(farmerId, datasetId) {
@@ -75,7 +103,8 @@ async function withdrawDataset(farmerId, datasetId) {
     throw err;
   }
 
-  return repo.update(datasetId, { status: "WITHDRAWN" });
+  const updated = await repo.update(datasetId, { status: "WITHDRAWN" });
+  return shapeDataset(updated);
 }
 
 async function deleteDataset(farmerId, datasetId) {
