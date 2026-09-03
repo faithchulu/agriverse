@@ -90,7 +90,7 @@ export default function ListingsTable() {
   if (loadError) {
     return (
       <div className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
-        Couldn't load your listings: {loadError}
+        Could not load your listings: {loadError}
       </div>
     );
   }

@@ -321,7 +321,7 @@ export default function BuyerAccountView() {
           />
           <Toggle
             label="Dispute updates"
-            description="Get notified on any change to a dispute you've raised."
+            description="Get notified on any change to a dispute you have raised."
             checked={notifications.disputeUpdates}
             onChange={(v) =>
               setNotifications((prev) => ({ ...prev, disputeUpdates: v }))
