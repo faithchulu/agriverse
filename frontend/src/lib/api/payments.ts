@@ -13,6 +13,15 @@ export interface Transaction {
   date: string;
 }
 
+export interface Payout {
+  id: string;
+  amount: number;
+  method: string;
+  status: string;
+  reference: string;
+  date: string;
+}
+
 export interface LicenseRecord {
   id: string;
   datasetTitle: string;
@@ -50,6 +59,6 @@ export const paymentsApi = {
   payoutBalance: () =>
     unwrap<{ availableBalance: number }>(apiClient.get("/payments/payouts/balance")),
   requestPayout: (method: string) =>
-    unwrap<{ id: string }>(apiClient.post("/payments/payouts", { method })),
-  myPayouts: () => unwrap<any[]>(apiClient.get("/payments/payouts/mine")),
+    unwrap<Payout>(apiClient.post("/payments/payouts", { method })),
+  myPayouts: () => unwrap<Payout[]>(apiClient.get("/payments/payouts/mine")),
 };

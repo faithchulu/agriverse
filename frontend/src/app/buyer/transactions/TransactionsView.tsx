@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { dummyTransactions } from "./dummy-data";
-import type { Transaction, TransactionStatus } from "../../../types/BuyerTransaction";
+import { paymentsApi, type Transaction as ApiTransaction } from "../../../lib/api/payments";
+import { extractErrorMessage } from "../../../lib/api/types";
+import type { TransactionStatus } from "../../../types/BuyerTransaction";
 
 const TABS: { label: string; value: TransactionStatus | "all" }[] = [
   { label: "All", value: "all" },
@@ -26,6 +27,12 @@ const STATUS_STYLES: Record<TransactionStatus, string> = {
   refunded: "bg-[#3B2F22]/10 text-[#3B2F22]",
 };
 
+const LICENSE_LABEL: Record<string, string> = {
+  "one-time": "One-time download",
+  "time-limited": "Time-limited access",
+  "research-only": "Research use only",
+};
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
@@ -34,19 +41,46 @@ function formatDate(iso: string) {
   });
 }
 
+function formatAmount(amount: number) {
+  return `ZMW ${amount.toFixed(2)}`;
+}
+
 export default function TransactionsView() {
-  const [transactions, setTransactions] =
-    useState<Transaction[]>(dummyTransactions);
+  const [transactions, setTransactions] = useState<ApiTransaction[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TransactionStatus | "all">("all");
   const [query, setQuery] = useState("");
+  const [disputingId, setDisputingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const data = await paymentsApi.myTransactions();
+        if (cancelled) return;
+        setTransactions(data);
+      } catch (err) {
+        if (cancelled) return;
+        setError(extractErrorMessage(err));
+        setTransactions((prev) => prev ?? []);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
+    if (!transactions) return [];
     return transactions.filter((t) => {
       const matchesTab = tab === "all" || t.status === tab;
       const matchesQuery =
         query.trim() === "" ||
-        t.sellerName.toLowerCase().includes(query.toLowerCase()) ||
-        t.datasetTitle.toLowerCase().includes(query.toLowerCase());
+        (t.sellerName ?? "").toLowerCase().includes(query.toLowerCase()) ||
+        (t.datasetTitle ?? "").toLowerCase().includes(query.toLowerCase());
       return matchesTab && matchesQuery;
     });
   }, [transactions, tab, query]);
@@ -56,15 +90,33 @@ export default function TransactionsView() {
     [filtered],
   );
 
-  function raiseDispute(id: string) {
-    // TODO: replace with `await axios.post(`/api/buyer/transactions/${id}/dispute`, { reason })`
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "disputed" } : t)),
-    );
+  async function raiseDispute(id: string) {
+    const reason = window.prompt("What is the reason for this dispute?");
+    if (!reason || !reason.trim()) return;
+
+    setDisputingId(id);
+    try {
+      await paymentsApi.dispute(id, reason.trim());
+      setTransactions((prev) =>
+        prev
+          ? prev.map((t) => (t.id === id ? { ...t, status: "disputed" } : t))
+          : prev,
+      );
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setDisputingId(null);
+    }
   }
 
   return (
     <div className="rounded-lg border border-[#8FBF9F]/30 bg-white dark:border-strokedark dark:bg-boxdark">
+      {error && (
+        <div className="border-b border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          {error}
+        </div>
+      )}
+
       {/* Tabs + search */}
       <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-strokedark">
         <div className="flex flex-wrap gap-1.5">
@@ -96,8 +148,9 @@ export default function TransactionsView() {
       </div>
 
       <div className="border-b border-[#3B2F22]/10 px-4 py-2.5 text-xs text-[#3B2F22]/50 dark:border-strokedark dark:text-bodydark2">
-        {filtered.length} transaction{filtered.length !== 1 && "s"} · $
-        {totalSpent.toFixed(2)} spent
+        {transactions === null
+          ? "Loading transactions..."
+          : `${filtered.length} transaction${filtered.length !== 1 ? "s" : ""} · ${formatAmount(totalSpent)} spent`}
       </div>
 
       {/* Table */}
@@ -124,18 +177,19 @@ export default function TransactionsView() {
                   {t.datasetTitle}
                 </td>
                 <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
-                  {t.sellerName}
+                  {t.sellerName ?? "Unknown seller"}
                 </td>
                 <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
-                  {t.licenseType}
+                  {LICENSE_LABEL[t.licenseType] ?? t.licenseType}
                 </td>
                 <td className="px-4 py-3 text-[#1B3A2B] dark:text-white">
-                  ZMW {t.amount.toFixed(2)}
+                  {formatAmount(t.amount)}
                 </td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-                      STATUS_STYLES[t.status]
+                      STATUS_STYLES[t.status as TransactionStatus] ??
+                      "bg-[#3B2F22]/10 text-[#3B2F22]"
                     }`}
                   >
                     {t.status}
@@ -158,8 +212,9 @@ export default function TransactionsView() {
                     {(t.status === "paid" || t.status === "released") && (
                       <button
                         title="Raise a dispute"
+                        disabled={disputingId === t.id}
                         onClick={() => raiseDispute(t.id)}
-                        className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#FCEBEB] hover:text-[#A32D2D]"
+                        className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#FCEBEB] hover:text-[#A32D2D] disabled:opacity-50"
                       >
                         <ExclamationTriangleIcon className="h-4 w-4" />
                       </button>
@@ -169,7 +224,7 @@ export default function TransactionsView() {
               </tr>
             ))}
 
-            {filtered.length === 0 && (
+            {transactions !== null && filtered.length === 0 && (
               <tr>
                 <td
                   colSpan={7}

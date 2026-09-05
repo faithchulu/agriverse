@@ -142,8 +142,19 @@ async function getPayoutBalance(farmerId) {
   return unpaid.reduce((sum, t) => sum + Number(t.amount), 0);
 }
 
+function shapePayout(p) {
+  return {
+    id: p.id,
+    amount: Number(p.amount),
+    method: p.method,
+    status: p.status.toLowerCase(),
+    reference: p.reference,
+    date: p.createdAt,
+  };
+}
+
 async function requestPayout(farmerId, method) {
-  return prisma.$transaction(async (tx) => {
+  const payout = await prisma.$transaction(async (tx) => {
     const unpaid = await repo.findReleasedUnpaidByFarmer(farmerId, tx);
     const amount = unpaid.reduce((sum, t) => sum + Number(t.amount), 0);
 
@@ -153,23 +164,26 @@ async function requestPayout(farmerId, method) {
       throw err;
     }
 
-    const payout = await repo.createPayout(
+    const created = await repo.createPayout(
       { farmerId, amount, method, status: "PENDING", reference: generateReference() },
       tx,
     );
 
     await repo.claimTransactionsForPayout(
       unpaid.map((t) => t.id),
-      payout.id,
+      created.id,
       tx,
     );
 
-    return payout;
+    return created;
   });
+
+  return shapePayout(payout);
 }
 
-function listMyPayouts(farmerId) {
-  return repo.findPayoutsByFarmer(farmerId);
+async function listMyPayouts(farmerId) {
+  const payouts = await repo.findPayoutsByFarmer(farmerId);
+  return payouts.map(shapePayout);
 }
 
 // ---------- Listing (mine) ----------

@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BanknotesIcon,
   ClockIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import { dummyPayouts, initialAvailableBalance } from "./dummy-data";
-import type { Payout, PayoutStatus } from "../../../../types/Payout";
+import { paymentsApi, type Payout } from "../../../../lib/api/payments";
+import { extractErrorMessage } from "../../../../lib/api/types";
+import type { PayoutStatus } from "../../../../types/Payout";
 
 const STATUS_STYLES: Record<PayoutStatus, string> = {
   pending: "bg-[#FAEEDA] text-[#854F0B]",
@@ -15,12 +16,18 @@ const STATUS_STYLES: Record<PayoutStatus, string> = {
   failed: "bg-[#FCEBEB] text-[#A32D2D]",
 };
 
+const PAYOUT_METHOD = "Bank transfer";
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+}
+
+function formatAmount(amount: number) {
+  return `ZMW ${amount.toFixed(2)}`;
 }
 
 function SummaryCard({
@@ -50,15 +57,40 @@ function SummaryCard({
 }
 
 export default function PayoutsView() {
-  const [payouts, setPayouts] = useState<Payout[]>(dummyPayouts);
-  const [availableBalance, setAvailableBalance] = useState(
-    initialAvailableBalance,
-  );
+  const [payouts, setPayouts] = useState<Payout[] | null>(null);
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [balanceRes, payoutsRes] = await Promise.all([
+          paymentsApi.payoutBalance(),
+          paymentsApi.myPayouts(),
+        ]);
+        if (cancelled) return;
+        setAvailableBalance(balanceRes.availableBalance);
+        setPayouts(payoutsRes);
+      } catch (err) {
+        if (cancelled) return;
+        setError(extractErrorMessage(err));
+        setAvailableBalance((prev) => prev ?? 0);
+        setPayouts((prev) => prev ?? []);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const totalPaidOut = useMemo(
     () =>
-      payouts
+      (payouts ?? [])
         .filter((p) => p.status === "completed")
         .reduce((sum, p) => sum + p.amount, 0),
     [payouts],
@@ -66,52 +98,52 @@ export default function PayoutsView() {
 
   const pendingAmount = useMemo(
     () =>
-      payouts
+      (payouts ?? [])
         .filter((p) => p.status === "pending")
         .reduce((sum, p) => sum + p.amount, 0),
     [payouts],
   );
 
   async function handleRequestPayout() {
-    if (availableBalance <= 0 || isRequesting) return;
+    if (!availableBalance || availableBalance <= 0 || isRequesting) return;
     setIsRequesting(true);
+    setError(null);
 
-    // TODO: replace with `await axios.post("/api/farmer/payouts", { amount: availableBalance })`
-    // once a real wallet/bank payout integration exists.
-    await new Promise((resolve) => setTimeout(resolve, 700));
-
-    const newPayout: Payout = {
-      id: `pyt_${Date.now()}`,
-      date: new Date().toISOString(),
-      amount: availableBalance,
-      method: "Bank transfer",
-      status: "pending",
-      reference: `REF-${Math.floor(Math.random() * 90000 + 10000)}`,
-    };
-
-    setPayouts((prev) => [newPayout, ...prev]);
-    setAvailableBalance(0);
-    setIsRequesting(false);
+    try {
+      const newPayout = await paymentsApi.requestPayout(PAYOUT_METHOD);
+      setPayouts((prev) => (prev ? [newPayout, ...prev] : [newPayout]));
+      setAvailableBalance(0);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setIsRequesting(false);
+    }
   }
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          {error}
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-3">
         <SummaryCard
           icon={BanknotesIcon}
           label="Available balance"
-          value={`$${availableBalance.toFixed(2)}`}
+          value={availableBalance === null ? "—" : formatAmount(availableBalance)}
         />
         <SummaryCard
           icon={ClockIcon}
           label="Pending payout"
-          value={`$${pendingAmount.toFixed(2)}`}
+          value={formatAmount(pendingAmount)}
         />
         <SummaryCard
           icon={CheckCircleIcon}
           label="Total paid out"
-          value={`$${totalPaidOut.toFixed(2)}`}
+          value={formatAmount(totalPaidOut)}
         />
       </div>
 
@@ -122,17 +154,17 @@ export default function PayoutsView() {
             Request a payout
           </p>
           <p className="text-sm text-[#3B2F22]/60 dark:text-bodydark2">
-            {availableBalance > 0
-              ? `$${availableBalance.toFixed(2)} is ready to withdraw.`
+            {availableBalance !== null && availableBalance > 0
+              ? `${formatAmount(availableBalance)} is ready to withdraw.`
               : "No available balance to withdraw right now."}
           </p>
         </div>
         <button
           onClick={handleRequestPayout}
-          disabled={availableBalance <= 0 || isRequesting}
+          disabled={!availableBalance || availableBalance <= 0 || isRequesting}
           className="rounded-md bg-[#2F5F3F] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#1B3A2B] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isRequesting ? "Requesting…" : "Request payout"}
+          {isRequesting ? "Requesting..." : "Request payout"}
         </button>
       </div>
 
@@ -155,7 +187,7 @@ export default function PayoutsView() {
               </tr>
             </thead>
             <tbody>
-              {payouts.map((p) => (
+              {(payouts ?? []).map((p) => (
                 <tr
                   key={p.id}
                   className="border-b border-[#3B2F22]/5 last:border-0 dark:border-strokedark"
@@ -164,7 +196,7 @@ export default function PayoutsView() {
                     {formatDate(p.date)}
                   </td>
                   <td className="px-4 py-3 text-[#1B3A2B] dark:text-white">
-                    ${p.amount.toFixed(2)}
+                    {formatAmount(p.amount)}
                   </td>
                   <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
                     {p.method}
@@ -172,7 +204,8 @@ export default function PayoutsView() {
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-                        STATUS_STYLES[p.status]
+                        STATUS_STYLES[p.status as PayoutStatus] ??
+                        "bg-[#3B2F22]/10 text-[#3B2F22]"
                       }`}
                     >
                       {p.status}
@@ -184,7 +217,7 @@ export default function PayoutsView() {
                 </tr>
               ))}
 
-              {payouts.length === 0 && (
+              {payouts !== null && payouts.length === 0 && (
                 <tr>
                   <td
                     colSpan={5}
