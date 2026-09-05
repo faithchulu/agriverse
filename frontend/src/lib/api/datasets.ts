@@ -35,7 +35,9 @@ export interface CreateDatasetInput {
   file: File;
 }
 
-async function unwrap<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
+async function unwrap<T>(
+  promise: Promise<{ data: ApiSuccess<T> }>,
+): Promise<T> {
   const res = await promise;
   return res.data.data;
 }
@@ -50,9 +52,11 @@ export const datasetsApi = {
     form.append("licenseType", input.licenseType);
     form.append("price", String(input.price));
     form.append("status", input.status);
-    if (input.sampleDateFrom) form.append("sampleDateFrom", input.sampleDateFrom);
+    if (input.sampleDateFrom)
+      form.append("sampleDateFrom", input.sampleDateFrom);
     if (input.sampleDateTo) form.append("sampleDateTo", input.sampleDateTo);
-    if (input.samplingMethod) form.append("samplingMethod", input.samplingMethod);
+    if (input.samplingMethod)
+      form.append("samplingMethod", input.samplingMethod);
     if (input.description) form.append("description", input.description);
 
     return unwrap<FarmerDataset>(
@@ -64,10 +68,15 @@ export const datasetsApi = {
 
   listMine: () => unwrap<FarmerDataset[]>(apiClient.get("/datasets/mine")),
 
-  getMine: (id: string) => unwrap<FarmerDataset>(apiClient.get(`/datasets/mine/${id}`)),
+  getMine: (id: string) =>
+    unwrap<FarmerDataset>(apiClient.get(`/datasets/mine/${id}`)),
 
   withdraw: (id: string) =>
     unwrap<FarmerDataset>(apiClient.patch(`/datasets/mine/${id}/withdraw`)),
 
-  remove: (id: string) => unwrap<{ message: string }>(apiClient.delete(`/datasets/mine/${id}`)),
+  archive: (id: string) =>
+    unwrap<FarmerDataset>(apiClient.patch(`/datasets/mine/${id}/withdraw`)),
+
+  remove: (id: string) =>
+    unwrap<{ message: string }>(apiClient.delete(`/datasets/mine/${id}`)),
 };

@@ -86,7 +86,7 @@ export default function LicensesView() {
         l.sellerName.toLowerCase().includes(query.toLowerCase());
       return matchesTab && matchesQuery;
     });
-  }, [tab, query]);
+  }, [licenses, tab, query]);
 
   function requestRenewal(id: string) {
     // TODO: replace with `await axios.post(`/api/buyer/licenses/${id}/renew`)`
@@ -147,7 +147,7 @@ export default function LicensesView() {
           />
         ))}
 
-        {filtered.length === 0 && (
+        {licenses !== null && filtered.length === 0 && (
           <li className="px-4 py-10 text-center text-sm text-[#3B2F22]/50 dark:text-bodydark2">
             No licenses match this filter.
           </li>

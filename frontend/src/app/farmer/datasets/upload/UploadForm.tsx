@@ -340,7 +340,7 @@ export default function UploadForm() {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1B3A2B] dark:text-white">
-              Price (USD)
+              Price (ZMW)
             </label>
             <input
               type="number"

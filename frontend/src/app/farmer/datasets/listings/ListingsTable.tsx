@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MagnifyingGlassIcon,
-  NoSymbolIcon,
+  ArchiveBoxIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { datasetsApi, type FarmerDataset, type DatasetStatus } from "../../../../lib/api/datasets";
+import {
+  datasetsApi,
+  type FarmerDataset,
+  type DatasetStatus,
+} from "../../../../lib/api/datasets";
 import { extractErrorMessage } from "../../../../lib/api/types";
 
 const TABS: { label: string; value: DatasetStatus | "all" }[] = [
   { label: "All", value: "all" },
   { label: "Draft", value: "draft" },
   { label: "Live", value: "live" },
-  { label: "Sold", value: "sold" },
-  { label: "Withdrawn", value: "withdrawn" },
+  { label: "Archived", value: "withdrawn" },
 ];
 
 const STATUS_STYLES: Record<DatasetStatus, string> = {
@@ -67,11 +70,13 @@ export default function ListingsTable() {
     });
   }, [listings, tab, query]);
 
-  async function withdrawListing(id: string) {
+  async function archiveListing(id: string) {
     setActionError(null);
     try {
-      const updated = await datasetsApi.withdraw(id);
-      setListings((prev) => prev?.map((l) => (l.id === id ? updated : l)) ?? null);
+      const updated = await datasetsApi.archive(id);
+      setListings(
+        (prev) => prev?.map((l) => (l.id === id ? updated : l)) ?? null,
+      );
     } catch (err) {
       setActionError(extractErrorMessage(err));
     }
@@ -98,7 +103,7 @@ export default function ListingsTable() {
   return (
     <div className="rounded-lg border border-[#8FBF9F]/30 bg-white dark:border-strokedark dark:bg-boxdark">
       {/* Tabs + search */}
-      <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-strokedark">
+      <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 dark:border-strokedark sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-1.5">
           {TABS.map((t) => (
             <button
@@ -143,13 +148,16 @@ export default function ListingsTable() {
               <th className="px-4 py-3 font-medium">Price</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Uploaded</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <th className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {listings === null && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#3B2F22]/40">
+                <td
+                  colSpan={6}
+                  className="px-4 py-10 text-center text-sm text-[#3B2F22]/40"
+                >
                   Loading…
                 </td>
               </tr>
@@ -181,7 +189,9 @@ export default function ListingsTable() {
                         STATUS_STYLES[listing.status]
                       }`}
                     >
-                      {listing.status}
+                      {listing.status === "withdrawn"
+                        ? "archived"
+                        : listing.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[#3B2F22]/70 dark:text-bodydark2">
@@ -191,11 +201,12 @@ export default function ListingsTable() {
                     <div className="flex justify-end gap-2">
                       {listing.status === "live" && (
                         <button
-                          title="Withdraw listing"
-                          onClick={() => withdrawListing(listing.id)}
+                          title="Archive listing"
+                          aria-label="Archive listing"
+                          onClick={() => archiveListing(listing.id)}
                           className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#FCEBEB] hover:text-[#A32D2D]"
                         >
-                          <NoSymbolIcon className="h-4 w-4" />
+                          <ArchiveBoxIcon className="h-4 w-4" />
                         </button>
                       )}
                       {listing.status === "draft" && (
