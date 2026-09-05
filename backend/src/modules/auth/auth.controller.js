@@ -1,4 +1,4 @@
-const asyncHandler = require("../../utils/asyncHandler");
+const asyncHandler = require("../../utils/asynchandler");
 const { success } = require("../../utils/response");
 const service = require("./auth.service");
 

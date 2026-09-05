@@ -4,9 +4,12 @@ const morgan = require("morgan");
 
 const env = require("./config/env");
 const prisma = require("./config/db");
-const asyncHandler = require("./utils/asyncHandler");
+const asyncHandler = require("./utils/asynchandler");
 const { success } = require("./utils/response");
-const { errorMiddleware, notFoundMiddleware } = require("./middleware/error.middleware");
+const {
+  errorMiddleware,
+  notFoundMiddleware,
+} = require("./middleware/error.middleware");
 
 const app = express();
 
@@ -42,7 +45,10 @@ app.get(
 app.use("/api/auth", require("./modules/auth/auth.routes"));
 app.use("/api/users", require("./modules/users/user.routes"));
 app.use("/api/datasets", require("./modules/datasets/dataset.routes"));
-app.use("/api/marketplace", require("./modules/marketplace/marketplace.routes"));
+app.use(
+  "/api/marketplace",
+  require("./modules/marketplace/marketplace.routes"),
+);
 app.use("/api/payments", require("./modules/payments/payment.routes"));
 app.use("/api/analytics", require("./modules/analytics/analytics.routes"));
 

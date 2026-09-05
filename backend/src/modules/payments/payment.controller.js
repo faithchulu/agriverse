@@ -1,4 +1,4 @@
-const asyncHandler = require("../../utils/asyncHandler");
+const asyncHandler = require("../../utils/asynchandler");
 const path = require("path");
 const { success } = require("../../utils/response");
 const service = require("./payment.service");

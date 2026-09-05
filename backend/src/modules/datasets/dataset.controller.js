@@ -1,4 +1,4 @@
-const asyncHandler = require("../../utils/asyncHandler");
+const asyncHandler = require("../../utils/asynchandler");
 const { success } = require("../../utils/response");
 const service = require("./dataset.service");
 
@@ -18,7 +18,11 @@ const getMine = asyncHandler(async (req, res) => {
 });
 
 const update = asyncHandler(async (req, res) => {
-  const dataset = await service.updateDataset(req.user.id, req.params.id, req.body);
+  const dataset = await service.updateDataset(
+    req.user.id,
+    req.params.id,
+    req.body,
+  );
   success(res, dataset);
 });
 
