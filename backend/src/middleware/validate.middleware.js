@@ -9,7 +9,16 @@ const { ZodError } = require("zod");
 function validate(schema, source = "body") {
   return function (req, res, next) {
     try {
-      req[source] = schema.parse(req[source]);
+      const parsed = schema.parse(req[source]);
+
+      // Express 5 exposes req.query through a getter, so assignment alone
+      // does not replace the raw string query parameters.
+      Object.defineProperty(req, source, {
+        configurable: true,
+        enumerable: true,
+        value: parsed,
+        writable: true,
+      });
       next();
     } catch (err) {
       if (err instanceof ZodError) {

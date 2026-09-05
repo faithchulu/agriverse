@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
-import { dummyLicenses } from "./dummy-data";
-import type { License, LicenseType, LicenseState } from "../../../../types/Licensing";
+import { paymentsApi, type LicenseRecord } from "../../../../lib/api/payments";
+import { extractErrorMessage } from "../../../../lib/api/types";
+import type { LicenseType, LicenseState } from "../../../../types/Licensing";
 
 const KIND_LABEL: Record<LicenseType, string> = {
   "one-time": "One-time download",
@@ -47,14 +48,37 @@ function daysBetween(a: Date, b: Date) {
 }
 
 export default function LicensesView() {
+  const [licenses, setLicenses] = useState<LicenseRecord[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<LicenseState | "all">("all");
   const [query, setQuery] = useState("");
   const [renewalRequested, setRenewalRequested] = useState<Set<string>>(
     new Set(),
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    paymentsApi
+      .myLicenses()
+      .then((data) => {
+        if (!cancelled) setLicenses(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(extractErrorMessage(err));
+        setLicenses((prev) => prev ?? []);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
-    return dummyLicenses.filter((l) => {
+    if (!licenses) return [];
+
+    return licenses.filter((l) => {
       const matchesTab = tab === "all" || l.state === tab;
       const matchesQuery =
         query.trim() === "" ||
@@ -71,8 +95,14 @@ export default function LicensesView() {
 
   return (
     <div className="rounded-lg border border-[#8FBF9F]/30 bg-white dark:border-strokedark dark:bg-boxdark">
+      {error && (
+        <div className="border-b border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          {error}
+        </div>
+      )}
+
       {/* Tabs + search */}
-      <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-strokedark">
+      <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 dark:border-strokedark sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-1.5">
           {TABS.map((t) => (
             <button
@@ -102,6 +132,12 @@ export default function LicensesView() {
       </div>
 
       <ul className="divide-y divide-[#3B2F22]/5 dark:divide-strokedark">
+        {licenses === null && (
+          <li className="px-4 py-10 text-center text-sm text-[#3B2F22]/50 dark:text-bodydark2">
+            Loading licenses...
+          </li>
+        )}
+
         {filtered.map((license) => (
           <LicenseRow
             key={license.id}
@@ -126,7 +162,7 @@ function LicenseRow({
   renewalRequested,
   onRequestRenewal,
 }: {
-  license: License;
+  license: LicenseRecord;
   renewalRequested: boolean;
   onRequestRenewal: () => void;
 }) {

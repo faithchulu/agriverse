@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
-import { dummyPurchases } from "./dummy-data";
-import type { Purchase, PurchaseStatus } from "../../../../types/Purchase";
+import { paymentsApi, type Transaction } from "../../../../lib/api/payments";
+import { extractErrorMessage } from "../../../../lib/api/types";
 
-const STATUS_STYLES: Record<PurchaseStatus, string> = {
-  completed: "bg-[#EAF3DE] text-[#2F5F3F]",
+const STATUS_STYLES: Record<string, string> = {
+  pending: "bg-[#FAEEDA] text-[#854F0B]",
+  paid: "bg-[#E6F1FB] text-[#0C447C]",
+  released: "bg-[#EAF3DE] text-[#2F5F3F]",
+  disputed: "bg-[#FCEBEB] text-[#A32D2D]",
   refunded: "bg-[#3B2F22]/10 text-[#3B2F22]",
 };
 
@@ -24,38 +27,65 @@ function formatDate(iso: string) {
 }
 
 export default function PurchaseHistoryView() {
+  const [purchases, setPurchases] = useState<Transaction[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
 
+  useEffect(() => {
+    let cancelled = false;
+
+    paymentsApi
+      .myTransactions()
+      .then((data) => {
+        if (!cancelled) setPurchases(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(extractErrorMessage(err));
+        setPurchases((prev) => prev ?? []);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
-    let items = dummyPurchases.filter(
+    if (!purchases) return [];
+
+    let items = purchases.filter(
       (p) =>
         query.trim() === "" ||
-        p.datasetTitle.toLowerCase().includes(query.toLowerCase()) ||
-        p.sellerName.toLowerCase().includes(query.toLowerCase()),
+        (p.datasetTitle ?? "").toLowerCase().includes(query.toLowerCase()) ||
+        (p.sellerName ?? "").toLowerCase().includes(query.toLowerCase()),
     );
 
     items = [...items].sort((a, b) => {
-      if (sort === "price-desc") return b.price - a.price;
-      const diff =
-        new Date(b.purchaseDate).getTime() -
-        new Date(a.purchaseDate).getTime();
+      if (sort === "price-desc") return b.amount - a.amount;
+      const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
       return sort === "oldest" ? -diff : diff;
     });
 
     return items;
-  }, [query, sort]);
+  }, [purchases, query, sort]);
 
   const totalSpent = useMemo(
     () =>
-      dummyPurchases
-        .filter((p) => p.status === "completed")
-        .reduce((sum, p) => sum + p.price, 0),
-    [],
+      (purchases ?? [])
+        .filter((p) => p.status !== "refunded")
+        .reduce((sum, p) => sum + p.amount, 0),
+    [purchases],
   );
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          Could not load purchase history: {error}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="rounded-lg border border-[#8FBF9F]/30 bg-white p-4 dark:border-strokedark dark:bg-boxdark">
         <p className="text-xs text-[#3B2F22]/50 dark:text-bodydark2">
@@ -68,7 +98,7 @@ export default function PurchaseHistoryView() {
 
       <div className="rounded-lg border border-[#8FBF9F]/30 bg-white dark:border-strokedark dark:bg-boxdark">
         {/* Search + sort */}
-        <div className="flex flex-col gap-3 border-b border-[#3B2F22]/10 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-strokedark">
+        <div className="flex flex-col gap-3 border-b border-[#3B2F22]/10 p-4 dark:border-strokedark sm:flex-row sm:items-center sm:justify-between">
           <div className="relative sm:w-64">
             <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#3B2F22]/40" />
             <input
@@ -93,6 +123,12 @@ export default function PurchaseHistoryView() {
 
         {/* List */}
         <ul className="divide-y divide-[#3B2F22]/5 dark:divide-strokedark">
+          {purchases === null && (
+            <li className="px-4 py-10 text-center text-sm text-[#3B2F22]/50 dark:text-bodydark2">
+              Loading purchase history...
+            </li>
+          )}
+
           {filtered.map((purchase) => (
             <PurchaseRow key={purchase.id} purchase={purchase} />
           ))}
@@ -108,29 +144,29 @@ export default function PurchaseHistoryView() {
   );
 }
 
-function PurchaseRow({ purchase }: { purchase: Purchase }) {
+function PurchaseRow({ purchase }: { purchase: Transaction }) {
   return (
     <li className="flex items-center justify-between gap-4 p-4">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[#1B3A2B] dark:text-white">
-          {purchase.datasetTitle}
+          {purchase.datasetTitle ?? "Unknown dataset"}
         </p>
         <p className="mt-0.5 text-xs text-[#3B2F22]/50 dark:text-bodydark2">
-          {purchase.sellerName} · {purchase.licenseType} ·{" "}
-          {formatDate(purchase.purchaseDate)}
+          {purchase.sellerName ?? "Unknown seller"} · {purchase.licenseType} ·{" "}
+          {formatDate(purchase.date)}
         </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-4">
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-            STATUS_STYLES[purchase.status]
+            STATUS_STYLES[purchase.status] ?? "bg-[#3B2F22]/10 text-[#3B2F22]"
           }`}
         >
           {purchase.status}
         </span>
         <span className="w-16 text-right text-sm font-semibold text-[#1B3A2B] dark:text-white">
-          ZMW {purchase.price.toFixed(2)}
+          ZMW {purchase.amount.toFixed(2)}
         </span>
         <button
           title="Receipt download will be available once billing integration is live"

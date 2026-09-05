@@ -78,7 +78,7 @@ const BuyerDashboard: React.FC = () => {
         />
         <CardDataStats
           title="Total spent"
-          total={summary ? `$${summary.totalSpent.toFixed(2)}` : "—"}
+          total={summary ? `ZMW ${summary.totalSpent.toFixed(2)}` : "—"}
           rate="All-time"
           icon={BanknotesIcon}
         />

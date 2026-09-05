@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
 import type { ApiSuccess } from "./types";
+import type { LicenseState, LicenseType } from "../../types/Licensing";
 
 export interface Transaction {
   id: string;
@@ -26,13 +27,15 @@ export interface LicenseRecord {
   id: string;
   datasetTitle: string;
   sellerName: string;
-  licenseKind: string;
+  licenseKind: LicenseType;
   grantedDate: string;
   expiryDate: string | null;
-  state: string;
+  state: LicenseState;
 }
 
-async function unwrap<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
+async function unwrap<T>(
+  promise: Promise<{ data: ApiSuccess<T> }>,
+): Promise<T> {
   const res = await promise;
   return res.data.data;
 }
@@ -43,21 +46,33 @@ export const paymentsApi = {
   // that does all three) so a future UI that shows real escrow steps
   // doesn't need the API layer rewritten, just the calling code.
   purchase: (datasetId: string) =>
-    unwrap<{ id: string }>(apiClient.post(`/payments/listings/${datasetId}/purchase`)),
+    unwrap<{ id: string }>(
+      apiClient.post(`/payments/listings/${datasetId}/purchase`),
+    ),
   pay: (transactionId: string) =>
-    unwrap<{ id: string }>(apiClient.post(`/payments/transactions/${transactionId}/pay`)),
+    unwrap<{ id: string }>(
+      apiClient.post(`/payments/transactions/${transactionId}/pay`),
+    ),
   release: (transactionId: string) =>
-    unwrap<{ id: string }>(apiClient.post(`/payments/transactions/${transactionId}/release`)),
+    unwrap<{ id: string }>(
+      apiClient.post(`/payments/transactions/${transactionId}/release`),
+    ),
   dispute: (transactionId: string, reason: string) =>
     unwrap<{ id: string }>(
-      apiClient.post(`/payments/transactions/${transactionId}/dispute`, { reason }),
+      apiClient.post(`/payments/transactions/${transactionId}/dispute`, {
+        reason,
+      }),
     ),
 
-  myTransactions: () => unwrap<Transaction[]>(apiClient.get("/payments/transactions/mine")),
-  myLicenses: () => unwrap<LicenseRecord[]>(apiClient.get("/payments/licenses/mine")),
+  myTransactions: () =>
+    unwrap<Transaction[]>(apiClient.get("/payments/transactions/mine")),
+  myLicenses: () =>
+    unwrap<LicenseRecord[]>(apiClient.get("/payments/licenses/mine")),
 
   payoutBalance: () =>
-    unwrap<{ availableBalance: number }>(apiClient.get("/payments/payouts/balance")),
+    unwrap<{ availableBalance: number }>(
+      apiClient.get("/payments/payouts/balance"),
+    ),
   requestPayout: (method: string) =>
     unwrap<Payout>(apiClient.post("/payments/payouts", { method })),
   myPayouts: () => unwrap<Payout[]>(apiClient.get("/payments/payouts/mine")),
