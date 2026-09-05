@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircleIcon,
   WalletIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
+import { useAuth } from "../../../lib/auth/AuthContext";
+import { usersApi } from "../../../lib/api/users";
+import { extractErrorMessage } from "../../../lib/api/types";
 
 interface ProfileState {
   contactName: string;
@@ -32,15 +35,6 @@ const ORG_TYPES = [
   "Government agency",
   "Other",
 ];
-
-const initialProfile: ProfileState = {
-  contactName: "Dr. Lweendo Banda",
-  organizationName: "Kalundu Agri University",
-  organizationType: "Research institution",
-  email: "l.banda@kalunduagri.edu",
-  phone: "+260 96 555 2314",
-  bio: "Soil science research group studying nitrogen retention across smallholder farms.",
-};
 
 const initialNotifications: NotificationState = {
   emailNotifications: true,
@@ -112,14 +106,22 @@ function Toggle({
 }
 
 export default function BuyerAccountView() {
-  const [profile, setProfile] = useState<ProfileState>(initialProfile);
+  const { user, updateUser } = useAuth();
+  const [profile, setProfile] = useState<ProfileState>({
+    contactName: "",
+    organizationName: "",
+    organizationType: "",
+    email: "",
+    phone: "",
+    bio: "",
+  });
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
 
-  const [notifications, setNotifications] = useState<NotificationState>(
-    initialNotifications,
-  );
+  const [notifications, setNotifications] =
+    useState<NotificationState>(initialNotifications);
   const [notificationsStatus, setNotificationsStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
@@ -134,6 +136,18 @@ export default function BuyerAccountView() {
   >("idle");
   const [securityError, setSecurityError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!user?.buyerProfile) return;
+    setProfile({
+      contactName: user.buyerProfile.contactName,
+      organizationName: user.buyerProfile.organizationName ?? "",
+      organizationType: user.buyerProfile.organizationType ?? "",
+      email: user.email,
+      phone: user.buyerProfile.phone ?? "",
+      bio: user.buyerProfile.bio ?? "",
+    });
+  }, [user]);
+
   function updateProfile<K extends keyof ProfileState>(
     key: K,
     value: ProfileState[K],
@@ -142,11 +156,27 @@ export default function BuyerAccountView() {
   }
 
   async function saveProfile() {
+    setProfileError(null);
     setProfileStatus("saving");
-    // TODO: await axios.put("/api/buyer/profile", profile)
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setProfileStatus("saved");
-    setTimeout(() => setProfileStatus("idle"), 1500);
+    try {
+      const updated = await usersApi.updateProfile(profile);
+      updateUser(updated);
+      if (updated.buyerProfile) {
+        setProfile({
+          contactName: updated.buyerProfile.contactName,
+          organizationName: updated.buyerProfile.organizationName ?? "",
+          organizationType: updated.buyerProfile.organizationType ?? "",
+          email: updated.email,
+          phone: updated.buyerProfile.phone ?? "",
+          bio: updated.buyerProfile.bio ?? "",
+        });
+      }
+      setProfileStatus("saved");
+      setTimeout(() => setProfileStatus("idle"), 1500);
+    } catch (err) {
+      setProfileStatus("idle");
+      setProfileError(extractErrorMessage(err));
+    }
   }
 
   async function saveNotifications() {
@@ -170,15 +200,26 @@ export default function BuyerAccountView() {
     }
 
     setSecurityStatus("saving");
-    // TODO: await axios.put("/api/buyer/security/password", passwords)
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setSecurityStatus("saved");
-    setPasswords({ current: "", next: "", confirm: "" });
-    setTimeout(() => setSecurityStatus("idle"), 1500);
+    setSecurityStatus("saving");
+    try {
+      await usersApi.changePassword(passwords.current, passwords.next);
+      setSecurityStatus("saved");
+      setPasswords({ current: "", next: "", confirm: "" });
+      setTimeout(() => setSecurityStatus("idle"), 1500);
+    } catch (err) {
+      setSecurityStatus("idle");
+      setSecurityError(extractErrorMessage(err));
+    }
   }
 
   return (
     <div className="space-y-6">
+      {profileError && (
+        <p className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          Could not save your profile: {profileError}
+        </p>
+      )}
+
       {/* Profile & organization details */}
       <section className="rounded-lg border border-[#8FBF9F]/30 bg-white p-6 dark:border-strokedark dark:bg-boxdark">
         <div className="mb-4 flex items-center justify-between">

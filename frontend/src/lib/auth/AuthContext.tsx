@@ -38,6 +38,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (input: RegisterInput) => Promise<AuthUser>;
+  updateUser: (user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -74,10 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await apiClient.post<ApiSuccess<{ user: AuthUser; token: string }>>(
-      "/auth/login",
-      { email, password },
-    );
+    const res = await apiClient.post<
+      ApiSuccess<{ user: AuthUser; token: string }>
+    >("/auth/login", { email, password });
     const { user: loggedInUser, token } = res.data.data;
     storeSession(token);
     setUser(loggedInUser);
@@ -85,10 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
-    const res = await apiClient.post<ApiSuccess<{ user: AuthUser; token: string }>>(
-      "/auth/register",
-      input,
-    );
+    const res = await apiClient.post<
+      ApiSuccess<{ user: AuthUser; token: string }>
+    >("/auth/register", input);
     const { user: newUser, token } = res.data.data;
     storeSession(token);
     setUser(newUser);
@@ -100,8 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((updatedUser: AuthUser) => {
+    setUser(updatedUser);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, register, updateUser, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

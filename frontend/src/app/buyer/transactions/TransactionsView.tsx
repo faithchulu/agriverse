@@ -6,15 +6,24 @@ import {
   ArrowDownTrayIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { paymentsApi, type Transaction as ApiTransaction } from "../../../lib/api/payments";
+import {
+  paymentsApi,
+  type Transaction as ApiTransaction,
+} from "../../../lib/api/payments";
 import { extractErrorMessage } from "../../../lib/api/types";
 import type { TransactionStatus } from "../../../types/BuyerTransaction";
 
-const TABS: { label: string; value: TransactionStatus | "all" }[] = [
+type TransactionFilter =
+  | "all"
+  | "pending"
+  | "completed"
+  | "disputed"
+  | "refunded";
+
+const TABS: { label: string; value: TransactionFilter }[] = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
-  { label: "Paid", value: "paid" },
-  { label: "Released", value: "released" },
+  { label: "Completed", value: "completed" },
   { label: "Disputed", value: "disputed" },
   { label: "Refunded", value: "refunded" },
 ];
@@ -46,9 +55,11 @@ function formatAmount(amount: number) {
 }
 
 export default function TransactionsView() {
-  const [transactions, setTransactions] = useState<ApiTransaction[] | null>(null);
+  const [transactions, setTransactions] = useState<ApiTransaction[] | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TransactionStatus | "all">("all");
+  const [tab, setTab] = useState<TransactionFilter>("all");
   const [query, setQuery] = useState("");
   const [disputingId, setDisputingId] = useState<string | null>(null);
 
@@ -76,7 +87,12 @@ export default function TransactionsView() {
   const filtered = useMemo(() => {
     if (!transactions) return [];
     return transactions.filter((t) => {
-      const matchesTab = tab === "all" || t.status === tab;
+      const matchesTab =
+        tab === "all" ||
+        (tab === "pending" &&
+          (t.status === "pending" || t.status === "paid")) ||
+        (tab === "completed" && t.status === "released") ||
+        t.status === tab;
       const matchesQuery =
         query.trim() === "" ||
         (t.sellerName ?? "").toLowerCase().includes(query.toLowerCase()) ||
@@ -118,7 +134,7 @@ export default function TransactionsView() {
       )}
 
       {/* Tabs + search */}
-      <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-strokedark">
+      <div className="flex flex-col gap-4 border-b border-[#3B2F22]/10 p-4 dark:border-strokedark sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-1.5">
           {TABS.map((t) => (
             <button
@@ -164,7 +180,7 @@ export default function TransactionsView() {
               <th className="px-4 py-3 font-medium">Amount</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <th className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>

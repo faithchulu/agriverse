@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircleIcon, WalletIcon } from "@heroicons/react/24/outline";
+import { useAuth } from "../../../lib/auth/AuthContext";
+import { usersApi } from "../../../lib/api/users";
+import { extractErrorMessage } from "../../../lib/api/types";
 
 interface ProfileState {
   fullName: string;
@@ -19,15 +22,6 @@ interface NotificationState {
   disputeAlerts: boolean;
   marketingUpdates: boolean;
 }
-
-const initialProfile: ProfileState = {
-  fullName: "Chanda Mwansa",
-  email: "chanda.mwansa@example.com",
-  phone: "+260 97 123 4567",
-  farmName: "Mwansa Family Farm",
-  farmLocation: "Eastern Province, Zambia",
-  bio: "Third-generation maize and soybean grower, running soil sensors across four fields since 2023.",
-};
 
 const initialNotifications: NotificationState = {
   emailNotifications: true,
@@ -98,14 +92,22 @@ function Toggle({
 }
 
 export default function AccountView() {
-  const [profile, setProfile] = useState<ProfileState>(initialProfile);
+  const { user, updateUser } = useAuth();
+  const [profile, setProfile] = useState<ProfileState>({
+    fullName: "",
+    email: "",
+    phone: "",
+    farmName: "",
+    farmLocation: "",
+    bio: "",
+  });
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
 
-  const [notifications, setNotifications] = useState<NotificationState>(
-    initialNotifications,
-  );
+  const [notifications, setNotifications] =
+    useState<NotificationState>(initialNotifications);
   const [notificationsStatus, setNotificationsStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
@@ -120,6 +122,18 @@ export default function AccountView() {
   >("idle");
   const [securityError, setSecurityError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!user?.farmerProfile) return;
+    setProfile({
+      fullName: user.farmerProfile.fullName,
+      email: user.email,
+      phone: user.farmerProfile.phone ?? "",
+      farmName: user.farmerProfile.farmName ?? "",
+      farmLocation: user.farmerProfile.farmLocation ?? "",
+      bio: user.farmerProfile.bio ?? "",
+    });
+  }, [user]);
+
   function updateProfile<K extends keyof ProfileState>(
     key: K,
     value: ProfileState[K],
@@ -128,11 +142,27 @@ export default function AccountView() {
   }
 
   async function saveProfile() {
+    setProfileError(null);
     setProfileStatus("saving");
-    // TODO: await axios.put("/api/farmer/profile", profile)
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setProfileStatus("saved");
-    setTimeout(() => setProfileStatus("idle"), 1500);
+    try {
+      const updated = await usersApi.updateProfile(profile);
+      updateUser(updated);
+      if (updated.farmerProfile) {
+        setProfile({
+          fullName: updated.farmerProfile.fullName,
+          email: updated.email,
+          phone: updated.farmerProfile.phone ?? "",
+          farmName: updated.farmerProfile.farmName ?? "",
+          farmLocation: updated.farmerProfile.farmLocation ?? "",
+          bio: updated.farmerProfile.bio ?? "",
+        });
+      }
+      setProfileStatus("saved");
+      setTimeout(() => setProfileStatus("idle"), 1500);
+    } catch (err) {
+      setProfileStatus("idle");
+      setProfileError(extractErrorMessage(err));
+    }
   }
 
   async function saveNotifications() {
@@ -156,15 +186,26 @@ export default function AccountView() {
     }
 
     setSecurityStatus("saving");
-    // TODO: await axios.put("/api/farmer/security/password", passwords)
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    setSecurityStatus("saved");
-    setPasswords({ current: "", next: "", confirm: "" });
-    setTimeout(() => setSecurityStatus("idle"), 1500);
+    setSecurityStatus("saving");
+    try {
+      await usersApi.changePassword(passwords.current, passwords.next);
+      setSecurityStatus("saved");
+      setPasswords({ current: "", next: "", confirm: "" });
+      setTimeout(() => setSecurityStatus("idle"), 1500);
+    } catch (err) {
+      setSecurityStatus("idle");
+      setSecurityError(extractErrorMessage(err));
+    }
   }
 
   return (
     <div className="space-y-6">
+      {profileError && (
+        <p className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          Could not save your profile: {profileError}
+        </p>
+      )}
+
       {/* Profile & farm details */}
       <section className="rounded-lg border border-[#8FBF9F]/30 bg-white p-6 dark:border-strokedark dark:bg-boxdark">
         <h2 className="mb-4 text-sm font-semibold text-[#1B3A2B] dark:text-white">
