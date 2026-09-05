@@ -39,6 +39,17 @@ async function purchaseListing(buyerId, datasetId) {
       throw err;
     }
 
+    const existingPurchase = await repo.findTransactionByBuyerAndDataset(
+      buyerId,
+      datasetId,
+      tx,
+    );
+    if (existingPurchase) {
+      const err = new Error("You have already purchased this dataset");
+      err.status = 409;
+      throw err;
+    }
+
     const transaction = await repo.createTransaction(
       {
         datasetId,
@@ -50,10 +61,6 @@ async function purchaseListing(buyerId, datasetId) {
       },
       tx,
     );
-
-    // Reserve the listing immediately so a second buyer can't also
-    // purchase it while this transaction is still in flight.
-    await tx.dataset.update({ where: { id: datasetId }, data: { status: "SOLD" } });
 
     return transaction;
   });
@@ -83,7 +90,11 @@ async function releaseTransaction(buyerId, transactionId) {
   assertStatus(transaction, "PAID");
 
   return prisma.$transaction(async (tx) => {
-    const updated = await repo.updateTransaction(transactionId, { status: "RELEASED" }, tx);
+    const updated = await repo.updateTransaction(
+      transactionId,
+      { status: "RELEASED" },
+      tx,
+    );
 
     const expiresAt =
       transaction.licenseType === "TIME_LIMITED"
@@ -165,7 +176,13 @@ async function requestPayout(farmerId, method) {
     }
 
     const created = await repo.createPayout(
-      { farmerId, amount, method, status: "PENDING", reference: generateReference() },
+      {
+        farmerId,
+        amount,
+        method,
+        status: "PENDING",
+        reference: generateReference(),
+      },
       tx,
     );
 
@@ -193,7 +210,9 @@ function shapeTransactionForBuyer(t) {
     id: t.id,
     datasetTitle: t.dataset.title,
     sellerName:
-      t.farmer.farmerProfile?.farmName || t.farmer.farmerProfile?.fullName || "Unknown seller",
+      t.farmer.farmerProfile?.farmName ||
+      t.farmer.farmerProfile?.fullName ||
+      "Unknown seller",
     licenseType: fromEnumCase(t.licenseType),
     amount: Number(t.amount),
     status: t.status.toLowerCase(),
@@ -206,7 +225,9 @@ function shapeTransactionForFarmer(t) {
     id: t.id,
     datasetTitle: t.dataset.title,
     buyerName:
-      t.buyer.buyerProfile?.organizationName || t.buyer.buyerProfile?.contactName || "Unknown buyer",
+      t.buyer.buyerProfile?.organizationName ||
+      t.buyer.buyerProfile?.contactName ||
+      "Unknown buyer",
     licenseType: fromEnumCase(t.licenseType),
     amount: Number(t.amount),
     status: t.status.toLowerCase(),

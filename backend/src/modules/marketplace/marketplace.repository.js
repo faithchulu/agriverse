@@ -34,7 +34,10 @@ function buildOrderBy(sort) {
   return { createdAt: "desc" };
 }
 
-async function findLiveListings({ search, cropType, licenseType, sort, page, limit }) {
+async function findLiveListings(
+  { search, cropType, licenseType, sort, page, limit },
+  buyerId,
+) {
   const where = buildWhere({ search, cropType, licenseType });
 
   const [items, total] = await Promise.all([
@@ -48,13 +51,34 @@ async function findLiveListings({ search, cropType, licenseType, sort, page, lim
     prisma.dataset.count({ where }),
   ]);
 
-  return { items, total };
+  let purchasedDatasetIds = new Set();
+  if (buyerId && items.length > 0) {
+    const purchases = await prisma.transaction.findMany({
+      where: {
+        buyerId,
+        datasetId: { in: items.map((item) => item.id) },
+      },
+      select: { datasetId: true },
+    });
+    purchasedDatasetIds = new Set(
+      purchases.map((purchase) => purchase.datasetId),
+    );
+  }
+
+  return { items, total, purchasedDatasetIds };
 }
 
 function findLiveById(id) {
   return prisma.dataset.findFirst({
     where: { id, status: "LIVE" },
     include: SELLER_INCLUDE,
+  });
+}
+
+function findTransactionByBuyerAndDataset(buyerId, datasetId) {
+  return prisma.transaction.findFirst({
+    where: { buyerId, datasetId },
+    select: { id: true },
   });
 }
 
@@ -68,4 +92,9 @@ function averageRatingsByFarmer(farmerIds) {
   });
 }
 
-module.exports = { findLiveListings, findLiveById, averageRatingsByFarmer };
+module.exports = {
+  findLiveListings,
+  findLiveById,
+  findTransactionByBuyerAndDataset,
+  averageRatingsByFarmer,
+};

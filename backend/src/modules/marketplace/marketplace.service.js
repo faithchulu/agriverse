@@ -8,7 +8,7 @@ function sellerName(farmer) {
 
 // Deliberately whitelists fields — never spread the raw Prisma row, since
 // that would leak filePath (a server disk path) to public API consumers.
-function shapeListing(dataset, ratingByFarmer) {
+function shapeListing(dataset, ratingByFarmer, purchasedDatasetIds) {
   const rating = ratingByFarmer.get(dataset.farmerId);
 
   return {
@@ -22,13 +22,14 @@ function shapeListing(dataset, ratingByFarmer) {
     sellerName: sellerName(dataset.farmer),
     sellerRating: rating ? Number(rating._avg.rating.toFixed(1)) : 0,
     sellerRatingCount: rating ? rating._count.rating : 0,
+    purchased: purchasedDatasetIds.has(dataset.id),
     uploadedDate: dataset.createdAt,
   };
 }
 
-function shapeListingDetail(dataset, ratingByFarmer) {
+function shapeListingDetail(dataset, ratingByFarmer, purchasedDatasetIds) {
   return {
-    ...shapeListing(dataset, ratingByFarmer),
+    ...shapeListing(dataset, ratingByFarmer, purchasedDatasetIds),
     description: dataset.description,
     samplingMethod: dataset.samplingMethod,
     sampleDateFrom: dataset.sampleDateFrom,
@@ -44,19 +45,24 @@ async function ratingMapFor(datasets) {
   return new Map(ratings.map((r) => [r.farmerId, r]));
 }
 
-async function browseListings(filters) {
-  const { items, total } = await repo.findLiveListings(filters);
+async function browseListings(filters, buyerId) {
+  const { items, total, purchasedDatasetIds } = await repo.findLiveListings(
+    filters,
+    buyerId,
+  );
   const ratingByFarmer = await ratingMapFor(items);
 
   return {
-    items: items.map((d) => shapeListing(d, ratingByFarmer)),
+    items: items.map((d) =>
+      shapeListing(d, ratingByFarmer, purchasedDatasetIds),
+    ),
     total,
     page: filters.page,
     limit: filters.limit,
   };
 }
 
-async function getListingDetail(id) {
+async function getListingDetail(id, buyerId) {
   const dataset = await repo.findLiveById(id);
   if (!dataset) {
     const err = new Error("Listing not found or no longer available");
@@ -64,7 +70,12 @@ async function getListingDetail(id) {
     throw err;
   }
   const ratingByFarmer = await ratingMapFor([dataset]);
-  return shapeListingDetail(dataset, ratingByFarmer);
+  const purchasedDatasetIds = new Set();
+  if (buyerId) {
+    const purchase = await repo.findTransactionByBuyerAndDataset(buyerId, id);
+    if (purchase) purchasedDatasetIds.add(id);
+  }
+  return shapeListingDetail(dataset, ratingByFarmer, purchasedDatasetIds);
 }
 
 module.exports = { browseListings, getListingDetail };

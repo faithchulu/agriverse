@@ -3,12 +3,12 @@ const { success } = require("../../utils/response");
 const service = require("./marketplace.service");
 
 const browseListings = asyncHandler(async (req, res) => {
-  const result = await service.browseListings(req.query);
+  const result = await service.browseListings(req.query, req.user.id);
   success(res, result);
 });
 
 const getListing = asyncHandler(async (req, res) => {
-  const listing = await service.getListingDetail(req.params.id);
+  const listing = await service.getListingDetail(req.params.id, req.user.id);
   success(res, listing);
 });
 

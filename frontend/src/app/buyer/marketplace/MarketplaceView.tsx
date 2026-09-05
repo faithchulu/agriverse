@@ -8,7 +8,10 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid, StarIcon } from "@heroicons/react/24/solid";
 import type { LicenseType } from "../../../types/Licensing";
-import { marketplaceApi, type ApiMarketplaceListing } from "../../../lib/api/marketplace";
+import {
+  marketplaceApi,
+  type ApiMarketplaceListing,
+} from "../../../lib/api/marketplace";
 import { paymentsApi } from "../../../lib/api/payments";
 import { extractErrorMessage } from "../../../lib/api/types";
 
@@ -28,16 +31,24 @@ type SortOption = "newest" | "price-asc" | "price-desc";
 type PurchaseState = "idle" | "buying" | "purchased" | "error";
 
 export default function MarketplaceView() {
-  const [listings, setListings] = useState<ApiMarketplaceListing[] | null>(null);
+  const [listings, setListings] = useState<ApiMarketplaceListing[] | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
   const [cropFilter, setCropFilter] = useState("All crops");
-  const [licenseFilter, setLicenseFilter] = useState<"all" | LicenseType>("all");
+  const [licenseFilter, setLicenseFilter] = useState<"all" | LicenseType>(
+    "all",
+  );
   const [sort, setSort] = useState<SortOption>("newest");
   const [saved, setSaved] = useState<Set<string>>(new Set());
-  const [purchaseStates, setPurchaseStates] = useState<Record<string, PurchaseState>>({});
-  const [purchaseErrors, setPurchaseErrors] = useState<Record<string, string>>({});
+  const [purchaseStates, setPurchaseStates] = useState<
+    Record<string, PurchaseState>
+  >({});
+  const [purchaseErrors, setPurchaseErrors] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +67,10 @@ export default function MarketplaceView() {
 
   const cropTypes = useMemo(() => {
     if (!listings) return ["All crops"];
-    return ["All crops", ...Array.from(new Set(listings.map((l) => l.cropType)))];
+    return [
+      "All crops",
+      ...Array.from(new Set(listings.map((l) => l.cropType))),
+    ];
   }, [listings]);
 
   const filtered = useMemo(() => {
@@ -68,15 +82,19 @@ export default function MarketplaceView() {
         l.title.toLowerCase().includes(query.toLowerCase()) ||
         l.region.toLowerCase().includes(query.toLowerCase()) ||
         l.sellerName.toLowerCase().includes(query.toLowerCase());
-      const matchesCrop = cropFilter === "All crops" || l.cropType === cropFilter;
-      const matchesLicense = licenseFilter === "all" || l.licenseType === licenseFilter;
+      const matchesCrop =
+        cropFilter === "All crops" || l.cropType === cropFilter;
+      const matchesLicense =
+        licenseFilter === "all" || l.licenseType === licenseFilter;
       return matchesQuery && matchesCrop && matchesLicense;
     });
 
     items = [...items].sort((a, b) => {
       if (sort === "price-asc") return a.price - b.price;
       if (sort === "price-desc") return b.price - a.price;
-      return new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime();
+      return (
+        new Date(b.uploadedDate).getTime() - new Date(a.uploadedDate).getTime()
+      );
     });
 
     return items;
@@ -113,7 +131,10 @@ export default function MarketplaceView() {
       setPurchaseStates((prev) => ({ ...prev, [datasetId]: "purchased" }));
     } catch (err) {
       setPurchaseStates((prev) => ({ ...prev, [datasetId]: "error" }));
-      setPurchaseErrors((prev) => ({ ...prev, [datasetId]: extractErrorMessage(err) }));
+      setPurchaseErrors((prev) => ({
+        ...prev,
+        [datasetId]: extractErrorMessage(err),
+      }));
     }
   }
 
@@ -128,7 +149,7 @@ export default function MarketplaceView() {
   return (
     <div className="space-y-5">
       {/* Filters */}
-      <div className="flex flex-col gap-3 rounded-lg border border-[#8FBF9F]/30 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-center dark:border-strokedark dark:bg-boxdark">
+      <div className="flex flex-col gap-3 rounded-lg border border-[#8FBF9F]/30 bg-white p-4 dark:border-strokedark dark:bg-boxdark sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative flex-1 sm:min-w-[220px]">
           <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#3B2F22]/40" />
           <input
@@ -154,7 +175,9 @@ export default function MarketplaceView() {
 
         <select
           value={licenseFilter}
-          onChange={(e) => setLicenseFilter(e.target.value as "all" | LicenseType)}
+          onChange={(e) =>
+            setLicenseFilter(e.target.value as "all" | LicenseType)
+          }
           className="rounded-md border border-[#3B2F22]/20 px-3 py-2 text-sm text-[#1B3A2B] focus:border-[#2F5F3F] focus:outline-none focus:ring-2 focus:ring-[#2F5F3F]/30 dark:border-strokedark dark:bg-form-input dark:text-white"
         >
           <option value="all">All license types</option>
@@ -189,6 +212,7 @@ export default function MarketplaceView() {
             isSaved={saved.has(listing.id)}
             onToggleSaved={() => toggleSaved(listing.id)}
             purchaseState={purchaseStates[listing.id] ?? "idle"}
+            purchased={listing.purchased}
             purchaseError={purchaseErrors[listing.id]}
             onBuy={() => handleBuy(listing.id)}
           />
@@ -209,6 +233,7 @@ function ListingCard({
   isSaved,
   onToggleSaved,
   purchaseState,
+  purchased,
   purchaseError,
   onBuy,
 }: {
@@ -216,6 +241,7 @@ function ListingCard({
   isSaved: boolean;
   onToggleSaved: () => void;
   purchaseState: PurchaseState;
+  purchased: boolean;
   purchaseError?: string;
   onBuy: () => void;
 }) {
@@ -248,7 +274,9 @@ function ListingCard({
       <h3 className="mt-3 text-sm font-semibold leading-snug text-[#1B3A2B] dark:text-white">
         {listing.title}
       </h3>
-      <p className="mt-1 text-xs text-[#3B2F22]/50 dark:text-bodydark2">{listing.region}</p>
+      <p className="mt-1 text-xs text-[#3B2F22]/50 dark:text-bodydark2">
+        {listing.region}
+      </p>
 
       <div className="mt-3 flex items-center gap-1.5 text-xs text-[#3B2F22]/60 dark:text-bodydark2">
         <StarIcon className="h-3.5 w-3.5 text-[#D9A441]" />
@@ -260,7 +288,7 @@ function ListingCard({
           ${listing.price.toFixed(2)}
         </span>
 
-        {purchaseState === "purchased" ? (
+        {purchased || purchaseState === "purchased" ? (
           <span className="flex items-center gap-1 text-sm font-medium text-[#2F5F3F]">
             <CheckCircleIcon className="h-4 w-4" />
             Purchased
@@ -268,7 +296,7 @@ function ListingCard({
         ) : (
           <button
             onClick={onBuy}
-            disabled={purchaseState === "buying"}
+            disabled={purchased || purchaseState === "buying"}
             className="rounded-md bg-[#2F5F3F] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1B3A2B] disabled:opacity-60"
           >
             {purchaseState === "buying"

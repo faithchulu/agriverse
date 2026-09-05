@@ -13,6 +13,7 @@ export interface ApiMarketplaceListing {
   sellerName: string;
   sellerRating: number;
   sellerRatingCount: number;
+  purchased: boolean;
   uploadedDate: string;
 }
 
@@ -33,11 +34,15 @@ export interface BrowseListingsResult {
 }
 
 export const marketplaceApi = {
-  async browse(params: BrowseListingsParams = {}): Promise<BrowseListingsResult> {
+  async browse(
+    params: BrowseListingsParams = {},
+  ): Promise<BrowseListingsResult> {
     const query: Record<string, string | number> = {};
     if (params.search) query.search = params.search;
-    if (params.cropType && params.cropType !== "All crops") query.cropType = params.cropType;
-    if (params.licenseType && params.licenseType !== "all") query.licenseType = params.licenseType;
+    if (params.cropType && params.cropType !== "All crops")
+      query.cropType = params.cropType;
+    if (params.licenseType && params.licenseType !== "all")
+      query.licenseType = params.licenseType;
     if (params.sort) query.sort = params.sort;
     query.page = params.page ?? 1;
     query.limit = params.limit ?? 50; // backend max; marketplace is small enough for one page

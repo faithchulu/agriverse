@@ -7,9 +7,10 @@ const licenseTypeField = z.preprocess(
 );
 
 // DRAFT or LIVE only — WITHDRAWN happens via the dedicated withdraw
-// endpoint, and SOLD is set automatically once a sale completes, never
-// directly by the farmer.
-const createStatusField = z.preprocess(toEnumCase, z.enum(["DRAFT", "LIVE"])).default("DRAFT");
+// endpoint. Purchases do not change the dataset status.
+const createStatusField = z
+  .preprocess(toEnumCase, z.enum(["DRAFT", "LIVE"]))
+  .default("DRAFT");
 
 const createDatasetSchema = z.object({
   title: z.string().min(1, "Title is required"),

@@ -6,6 +6,13 @@ function createTransaction(data, tx = prisma) {
   return tx.transaction.create({ data });
 }
 
+function findTransactionByBuyerAndDataset(buyerId, datasetId, tx = prisma) {
+  return tx.transaction.findFirst({
+    where: { buyerId, datasetId },
+    select: { id: true },
+  });
+}
+
 function findTransactionById(id, tx = prisma) {
   return tx.transaction.findUnique({
     where: { id },
@@ -22,7 +29,11 @@ function findTransactionsByBuyer(buyerId) {
     where: { buyerId },
     include: {
       dataset: { select: { title: true } },
-      farmer: { select: { farmerProfile: { select: { farmName: true, fullName: true } } } },
+      farmer: {
+        select: {
+          farmerProfile: { select: { farmName: true, fullName: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -33,7 +44,13 @@ function findTransactionsByFarmer(farmerId) {
     where: { farmerId },
     include: {
       dataset: { select: { title: true } },
-      buyer: { select: { buyerProfile: { select: { organizationName: true, contactName: true } } } },
+      buyer: {
+        select: {
+          buyerProfile: {
+            select: { organizationName: true, contactName: true },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -52,7 +69,11 @@ function findLicensesByBuyer(buyerId) {
       dataset: {
         select: {
           title: true,
-          farmer: { select: { farmerProfile: { select: { farmName: true, fullName: true } } } },
+          farmer: {
+            select: {
+              farmerProfile: { select: { farmName: true, fullName: true } },
+            },
+          },
         },
       },
     },
@@ -94,6 +115,7 @@ function findPayoutsByFarmer(farmerId) {
 
 module.exports = {
   createTransaction,
+  findTransactionByBuyerAndDataset,
   findTransactionById,
   updateTransaction,
   findTransactionsByBuyer,
