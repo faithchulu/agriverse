@@ -208,6 +208,7 @@ async function listMyPayouts(farmerId) {
 function shapeTransactionForBuyer(t) {
   return {
     id: t.id,
+    licenseId: t.license?.id || null,
     datasetTitle: t.dataset.title,
     sellerName:
       t.farmer.farmerProfile?.farmName ||
@@ -223,6 +224,7 @@ function shapeTransactionForBuyer(t) {
 function shapeTransactionForFarmer(t) {
   return {
     id: t.id,
+    licenseId: t.license?.id || null,
     datasetTitle: t.dataset.title,
     buyerName:
       t.buyer.buyerProfile?.organizationName ||
@@ -270,6 +272,45 @@ async function listMyLicenses(buyerId) {
   return licenses.map(shapeLicense);
 }
 
+async function authorizeLicenseDownload(buyerId, licenseId) {
+  const license = await repo.findLicenseForDownload(licenseId, buyerId);
+  if (!license) {
+    const err = new Error("License not found");
+    err.status = 404;
+    throw err;
+  }
+
+  if (license.state === "USED") {
+    const err = new Error("This one-time license has already been used");
+    err.status = 409;
+    throw err;
+  }
+
+  if (license.state !== "ACTIVE") {
+    const err = new Error("This license is not active");
+    err.status = 403;
+    throw err;
+  }
+
+  if (license.expiresAt && license.expiresAt <= new Date()) {
+    const err = new Error("This license has expired");
+    err.status = 403;
+    throw err;
+  }
+
+  if (!license.dataset.filePath) {
+    const err = new Error("The dataset file is not available");
+    err.status = 404;
+    throw err;
+  }
+
+  return {
+    filePath: license.dataset.filePath,
+    fileName: license.dataset.title,
+    oneTime: license.licenseKind === "ONE_TIME",
+  };
+}
+
 module.exports = {
   purchaseListing,
   payTransaction,
@@ -280,4 +321,6 @@ module.exports = {
   listMyPayouts,
   listMyTransactions,
   listMyLicenses,
+  authorizeLicenseDownload,
+  markLicenseUsed: repo.markLicenseUsed,
 };

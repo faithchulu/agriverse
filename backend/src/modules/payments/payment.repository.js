@@ -29,6 +29,7 @@ function findTransactionsByBuyer(buyerId) {
     where: { buyerId },
     include: {
       dataset: { select: { title: true } },
+      license: { select: { id: true } },
       farmer: {
         select: {
           farmerProfile: { select: { farmName: true, fullName: true } },
@@ -44,6 +45,7 @@ function findTransactionsByFarmer(farmerId) {
     where: { farmerId },
     include: {
       dataset: { select: { title: true } },
+      license: { select: { id: true } },
       buyer: {
         select: {
           buyerProfile: {
@@ -78,6 +80,22 @@ function findLicensesByBuyer(buyerId) {
       },
     },
     orderBy: { grantedAt: "desc" },
+  });
+}
+
+function findLicenseForDownload(licenseId, buyerId) {
+  return prisma.license.findFirst({
+    where: { id: licenseId, buyerId },
+    include: {
+      dataset: { select: { title: true, filePath: true } },
+    },
+  });
+}
+
+function markLicenseUsed(licenseId) {
+  return prisma.license.update({
+    where: { id: licenseId },
+    data: { state: "USED" },
   });
 }
 
@@ -122,6 +140,8 @@ module.exports = {
   findTransactionsByFarmer,
   createLicense,
   findLicensesByBuyer,
+  findLicenseForDownload,
+  markLicenseUsed,
   createDispute,
   findReleasedUnpaidByFarmer,
   claimTransactionsForPayout,

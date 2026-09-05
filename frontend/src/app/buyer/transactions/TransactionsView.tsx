@@ -62,6 +62,7 @@ export default function TransactionsView() {
   const [tab, setTab] = useState<TransactionFilter>("all");
   const [query, setQuery] = useState("");
   const [disputingId, setDisputingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +123,19 @@ export default function TransactionsView() {
       setError(extractErrorMessage(err));
     } finally {
       setDisputingId(null);
+    }
+  }
+
+  async function downloadLicense(transaction: ApiTransaction) {
+    if (!transaction.licenseId) return;
+    setError(null);
+    setDownloadingId(transaction.id);
+    try {
+      await paymentsApi.downloadLicense(transaction.licenseId);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -218,9 +232,10 @@ export default function TransactionsView() {
                   <div className="flex justify-end gap-2">
                     {t.status === "released" && (
                       <button
-                        title="Download will be available once storage integration is live"
-                        disabled
-                        className="cursor-not-allowed rounded-md p-1.5 text-[#3B2F22]/30"
+                        title="Download licensed dataset"
+                        disabled={!t.licenseId || downloadingId === t.id}
+                        onClick={() => downloadLicense(t)}
+                        className="rounded-md p-1.5 text-[#3B2F22]/60 hover:bg-[#EAF3DE] hover:text-[#2F5F3F] disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
                       </button>

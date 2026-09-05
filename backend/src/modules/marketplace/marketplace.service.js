@@ -8,7 +8,12 @@ function sellerName(farmer) {
 
 // Deliberately whitelists fields — never spread the raw Prisma row, since
 // that would leak filePath (a server disk path) to public API consumers.
-function shapeListing(dataset, ratingByFarmer, purchasedDatasetIds) {
+function shapeListing(
+  dataset,
+  ratingByFarmer,
+  purchasedDatasetIds,
+  savedDatasetIds = new Set(),
+) {
   const rating = ratingByFarmer.get(dataset.farmerId);
 
   return {
@@ -23,6 +28,7 @@ function shapeListing(dataset, ratingByFarmer, purchasedDatasetIds) {
     sellerRating: rating ? Number(rating._avg.rating.toFixed(1)) : 0,
     sellerRatingCount: rating ? rating._count.rating : 0,
     purchased: purchasedDatasetIds.has(dataset.id),
+    saved: savedDatasetIds.has(dataset.id),
     uploadedDate: dataset.createdAt,
   };
 }
@@ -46,20 +52,58 @@ async function ratingMapFor(datasets) {
 }
 
 async function browseListings(filters, buyerId) {
-  const { items, total, purchasedDatasetIds } = await repo.findLiveListings(
-    filters,
-    buyerId,
-  );
+  const { items, total, purchasedDatasetIds, savedDatasetIds } =
+    await repo.findLiveListings(filters, buyerId);
   const ratingByFarmer = await ratingMapFor(items);
 
   return {
     items: items.map((d) =>
-      shapeListing(d, ratingByFarmer, purchasedDatasetIds),
+      shapeListing(d, ratingByFarmer, purchasedDatasetIds, savedDatasetIds),
     ),
     total,
     page: filters.page,
     limit: filters.limit,
   };
+}
+
+function shapeSavedListing(saved) {
+  const listing = saved.dataset;
+  const profile = listing.farmer.farmerProfile;
+  return {
+    id: listing.id,
+    title: listing.title,
+    cropType: listing.cropType,
+    region: listing.region,
+    price: Number(listing.price),
+    licenseType: fromEnumCase(listing.licenseType),
+    sellerId: listing.farmerId,
+    sellerName: profile?.farmName || profile?.fullName || "Unknown seller",
+    uploadedDate: listing.createdAt,
+    savedAt: saved.createdAt,
+  };
+}
+
+async function listSavedListings(buyerId) {
+  const saved = await repo.findSavedListingsByBuyer(buyerId);
+  return saved.map(shapeSavedListing);
+}
+
+async function saveListing(buyerId, datasetId) {
+  const dataset = await repo.findLiveById(datasetId);
+  if (!dataset) {
+    const err = new Error("Listing not found or no longer available");
+    err.status = 404;
+    throw err;
+  }
+  const existing = await repo.findSavedListing(buyerId, datasetId);
+  if (!existing) await repo.createSavedListing(buyerId, datasetId);
+  return { saved: true };
+}
+
+async function removeSavedListing(buyerId, datasetId) {
+  const existing = await repo.findSavedListing(buyerId, datasetId);
+  if (existing) await repo.deleteSavedListing(buyerId, datasetId);
+  return { saved: false };
 }
 
 async function getListingDetail(id, buyerId) {
@@ -78,4 +122,10 @@ async function getListingDetail(id, buyerId) {
   return shapeListingDetail(dataset, ratingByFarmer, purchasedDatasetIds);
 }
 
-module.exports = { browseListings, getListingDetail };
+module.exports = {
+  browseListings,
+  getListingDetail,
+  listSavedListings,
+  saveListing,
+  removeSavedListing,
+};

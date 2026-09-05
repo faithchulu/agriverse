@@ -4,6 +4,7 @@ import type { LicenseState, LicenseType } from "../../types/Licensing";
 
 export interface Transaction {
   id: string;
+  licenseId?: string | null;
   datasetId?: string;
   datasetTitle?: string;
   sellerName?: string;
@@ -68,6 +69,26 @@ export const paymentsApi = {
     unwrap<Transaction[]>(apiClient.get("/payments/transactions/mine")),
   myLicenses: () =>
     unwrap<LicenseRecord[]>(apiClient.get("/payments/licenses/mine")),
+  downloadLicense: async (licenseId: string) => {
+    const response = await apiClient.get<Blob>(
+      `/payments/licenses/${licenseId}/download`,
+      { responseType: "blob" },
+    );
+    const contentDisposition = response.headers["content-disposition"] as
+      | string
+      | undefined;
+    const filename =
+      contentDisposition?.match(/filename="?([^";]+)"?/i)?.[1] ||
+      "dataset-download";
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  },
 
   payoutBalance: () =>
     unwrap<{ availableBalance: number }>(

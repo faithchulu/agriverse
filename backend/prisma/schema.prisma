@@ -78,6 +78,7 @@ model User {
   reviewsGiven  Review[]      @relation("ReviewsByBuyer")
   reviewsAbout  Review[]      @relation("ReviewsAboutFarmer")
   disputesRaised Dispute[]    @relation("DisputesRaisedBy")
+  savedListings  SavedListing[]
 
   @@map("users")
 }
@@ -133,10 +134,25 @@ model Dataset {
   transactions Transaction[]
   licenses     License[]
   reviews      Review[]
+  savedBy      SavedListing[]
 
   @@index([farmerId])
   @@index([status])
   @@map("datasets")
+}
+
+model SavedListing {
+  id        String   @id @default(cuid())
+  buyerId   String
+  buyer     User     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  datasetId String
+  dataset   Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([buyerId, datasetId])
+  @@index([buyerId])
+  @@index([datasetId])
+  @@map("saved_listings")
 }
 
 // ---------- Transactions / escrow simulation ----------

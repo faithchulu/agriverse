@@ -55,6 +55,7 @@ export default function LicensesView() {
   const [renewalRequested, setRenewalRequested] = useState<Set<string>>(
     new Set(),
   );
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +92,26 @@ export default function LicensesView() {
   function requestRenewal(id: string) {
     // TODO: replace with `await axios.post(`/api/buyer/licenses/${id}/renew`)`
     setRenewalRequested((prev) => new Set(prev).add(id));
+  }
+
+  async function downloadLicense(id: string) {
+    setError(null);
+    setDownloadingId(id);
+    try {
+      await paymentsApi.downloadLicense(id);
+      setLicenses(
+        (prev) =>
+          prev?.map((license) =>
+            license.id === id && license.licenseKind === "one-time"
+              ? { ...license, state: "used" }
+              : license,
+          ) ?? null,
+      );
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
   return (
@@ -144,6 +165,8 @@ export default function LicensesView() {
             license={license}
             renewalRequested={renewalRequested.has(license.id)}
             onRequestRenewal={() => requestRenewal(license.id)}
+            downloading={downloadingId === license.id}
+            onDownload={() => downloadLicense(license.id)}
           />
         ))}
 
@@ -161,10 +184,14 @@ function LicenseRow({
   license,
   renewalRequested,
   onRequestRenewal,
+  downloading,
+  onDownload,
 }: {
   license: LicenseRecord;
   renewalRequested: boolean;
   onRequestRenewal: () => void;
+  downloading: boolean;
+  onDownload: () => void;
 }) {
   const now = new Date();
   const expiry = license.expiryDate ? new Date(license.expiryDate) : null;
@@ -226,14 +253,15 @@ function LicenseRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {license.state !== "expired" && (
+        {license.state === "active" && (
           <button
-            title="Download will be available once storage integration is live"
-            disabled
-            className="flex cursor-not-allowed items-center gap-1.5 rounded-md border border-[#3B2F22]/15 px-3 py-1.5 text-xs font-medium text-[#3B2F22]/40"
+            title="Download licensed dataset"
+            onClick={onDownload}
+            disabled={downloading}
+            className="flex items-center gap-1.5 rounded-md border border-[#3B2F22]/15 px-3 py-1.5 text-xs font-medium text-[#2F5F3F] hover:bg-[#EAF3DE] disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="h-3.5 w-3.5" />
-            Download
+            {downloading ? "Downloading..." : "Download"}
           </button>
         )}
 

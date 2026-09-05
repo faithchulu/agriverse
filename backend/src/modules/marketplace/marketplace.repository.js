@@ -52,20 +52,26 @@ async function findLiveListings(
   ]);
 
   let purchasedDatasetIds = new Set();
+  let savedDatasetIds = new Set();
   if (buyerId && items.length > 0) {
-    const purchases = await prisma.transaction.findMany({
-      where: {
-        buyerId,
-        datasetId: { in: items.map((item) => item.id) },
-      },
-      select: { datasetId: true },
-    });
+    const datasetIds = items.map((item) => item.id);
+    const [purchases, saved] = await Promise.all([
+      prisma.transaction.findMany({
+        where: { buyerId, datasetId: { in: datasetIds } },
+        select: { datasetId: true },
+      }),
+      prisma.savedListing.findMany({
+        where: { buyerId, datasetId: { in: datasetIds } },
+        select: { datasetId: true },
+      }),
+    ]);
     purchasedDatasetIds = new Set(
       purchases.map((purchase) => purchase.datasetId),
     );
+    savedDatasetIds = new Set(saved.map((listing) => listing.datasetId));
   }
 
-  return { items, total, purchasedDatasetIds };
+  return { items, total, purchasedDatasetIds, savedDatasetIds };
 }
 
 function findLiveById(id) {
@@ -79,6 +85,30 @@ function findTransactionByBuyerAndDataset(buyerId, datasetId) {
   return prisma.transaction.findFirst({
     where: { buyerId, datasetId },
     select: { id: true },
+  });
+}
+
+function findSavedListingsByBuyer(buyerId) {
+  return prisma.savedListing.findMany({
+    where: { buyerId, dataset: { status: "LIVE" } },
+    include: { dataset: { include: SELLER_INCLUDE } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+function findSavedListing(buyerId, datasetId) {
+  return prisma.savedListing.findUnique({
+    where: { buyerId_datasetId: { buyerId, datasetId } },
+  });
+}
+
+function createSavedListing(buyerId, datasetId) {
+  return prisma.savedListing.create({ data: { buyerId, datasetId } });
+}
+
+function deleteSavedListing(buyerId, datasetId) {
+  return prisma.savedListing.delete({
+    where: { buyerId_datasetId: { buyerId, datasetId } },
   });
 }
 
@@ -96,5 +126,9 @@ module.exports = {
   findLiveListings,
   findLiveById,
   findTransactionByBuyerAndDataset,
+  findSavedListingsByBuyer,
+  findSavedListing,
+  createSavedListing,
+  deleteSavedListing,
   averageRatingsByFarmer,
 };

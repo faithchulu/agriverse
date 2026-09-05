@@ -1,46 +1,39 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { HeartIcon } from "@heroicons/react/24/solid";
-
-interface SavedListing {
-  id: string;
-  title: string;
-  cropType: string;
-  price: number;
-}
-
-// TODO: replace with `const { data } = await axios.get("/api/buyer/saved-listings")`
-const savedListings: SavedListing[] = [
-  {
-    id: "lst_007",
-    title: "Rice paddy nitrogen levels - Lowveld",
-    cropType: "Rice",
-    price: 90,
-  },
-  {
-    id: "lst_008",
-    title: "Sorghum drought resilience trial - Southern Province",
-    cropType: "Sorghum",
-    price: 180,
-  },
-  {
-    id: "lst_009",
-    title: "Wheat hybrid yield trial - Northern Plains",
-    cropType: "Wheat",
-    price: 250,
-  },
-  {
-    id: "lst_004",
-    title: "Cassava root growth sensor data - Central Region",
-    cropType: "Cassava",
-    price: 60,
-  },
-];
+import {
+  marketplaceApi,
+  type SavedListing,
+} from "../../../lib/api/marketplace";
+import { extractErrorMessage } from "../../../lib/api/types";
 
 function initials(text: string) {
   return text.slice(0, 2).toUpperCase();
 }
 
 const SavedListings: React.FC = () => {
+  const [savedListings, setSavedListings] = useState<SavedListing[] | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    marketplaceApi
+      .saved()
+      .then((data) => {
+        if (!cancelled) setSavedListings(data);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(err));
+          setSavedListings([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="col-span-12 rounded-lg border border-[#8FBF9F]/30 bg-white py-6 dark:border-strokedark dark:bg-boxdark xl:col-span-4">
       <h4 className="mb-6 flex items-center gap-2 px-7.5 text-xl font-semibold text-[#1B3A2B] dark:text-white">
@@ -48,7 +41,13 @@ const SavedListings: React.FC = () => {
       </h4>
 
       <div>
-        {savedListings.map((listing) => (
+        {error && <p className="px-7.5 text-sm text-[#A32D2D]">{error}</p>}
+        {savedListings === null && (
+          <p className="px-7.5 text-sm text-[#3B2F22]/50">
+            Loading saved listings...
+          </p>
+        )}
+        {savedListings?.map((listing) => (
           <div
             key={listing.id}
             className="flex items-center gap-4 px-7.5 py-3 hover:bg-[#EAF3DE]/60 dark:hover:bg-meta-4"
@@ -70,6 +69,11 @@ const SavedListings: React.FC = () => {
             </div>
           </div>
         ))}
+        {savedListings !== null && savedListings.length === 0 && !error && (
+          <p className="px-7.5 text-sm text-[#3B2F22]/50">
+            No saved listings yet.
+          </p>
+        )}
       </div>
     </div>
   );

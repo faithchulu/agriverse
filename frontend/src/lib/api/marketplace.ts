@@ -14,7 +14,21 @@ export interface ApiMarketplaceListing {
   sellerRating: number;
   sellerRatingCount: number;
   purchased: boolean;
+  saved: boolean;
   uploadedDate: string;
+}
+
+export interface SavedListing {
+  id: string;
+  title: string;
+  cropType: string;
+  region: string;
+  price: number;
+  licenseType: LicenseType;
+  sellerId: string;
+  sellerName: string;
+  uploadedDate: string;
+  savedAt: string;
 }
 
 export interface BrowseListingsParams {
@@ -50,6 +64,23 @@ export const marketplaceApi = {
     const res = await apiClient.get<ApiSuccess<BrowseListingsResult>>(
       "/marketplace/listings",
       { params: query },
+    );
+    return res.data.data;
+  },
+  saved: async (): Promise<SavedListing[]> => {
+    const res =
+      await apiClient.get<ApiSuccess<SavedListing[]>>("/marketplace/saved");
+    return res.data.data;
+  },
+  save: async (datasetId: string) => {
+    const res = await apiClient.post<ApiSuccess<{ saved: boolean }>>(
+      `/marketplace/listings/${datasetId}/save`,
+    );
+    return res.data.data;
+  },
+  removeSaved: async (datasetId: string) => {
+    const res = await apiClient.delete<ApiSuccess<{ saved: boolean }>>(
+      `/marketplace/listings/${datasetId}/save`,
     );
     return res.data.data;
   },

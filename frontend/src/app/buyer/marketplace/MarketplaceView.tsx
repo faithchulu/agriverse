@@ -43,6 +43,7 @@ export default function MarketplaceView() {
   );
   const [sort, setSort] = useState<SortOption>("newest");
   const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [purchaseStates, setPurchaseStates] = useState<
     Record<string, PurchaseState>
   >({});
@@ -55,7 +56,14 @@ export default function MarketplaceView() {
     marketplaceApi
       .browse({ limit: 50 })
       .then((res) => {
-        if (!cancelled) setListings(res.items);
+        if (!cancelled) {
+          setListings(res.items);
+          setSaved(
+            new Set(
+              res.items.filter((item) => item.saved).map((item) => item.id),
+            ),
+          );
+        }
       })
       .catch((err) => {
         if (!cancelled) setLoadError(extractErrorMessage(err));
@@ -100,12 +108,31 @@ export default function MarketplaceView() {
     return items;
   }, [listings, query, cropFilter, licenseFilter, sort]);
 
-  function toggleSaved(id: string) {
+  async function toggleSaved(id: string) {
+    if (savingId) return;
+    const wasSaved = saved.has(id);
+    setSavingId(id);
     setSaved((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      wasSaved ? next.delete(id) : next.add(id);
       return next;
     });
+    try {
+      if (wasSaved) await marketplaceApi.removeSaved(id);
+      else await marketplaceApi.save(id);
+    } catch (err) {
+      setSaved((prev) => {
+        const next = new Set(prev);
+        wasSaved ? next.add(id) : next.delete(id);
+        return next;
+      });
+      setPurchaseErrors((prev) => ({
+        ...prev,
+        [id]: extractErrorMessage(err),
+      }));
+    } finally {
+      setSavingId(null);
+    }
   }
 
   // Chains three real backend calls (purchase → pay → release) so one
@@ -210,7 +237,8 @@ export default function MarketplaceView() {
             key={listing.id}
             listing={listing}
             isSaved={saved.has(listing.id)}
-            onToggleSaved={() => toggleSaved(listing.id)}
+            onToggleSaved={() => void toggleSaved(listing.id)}
+            saving={savingId === listing.id}
             purchaseState={purchaseStates[listing.id] ?? "idle"}
             purchased={listing.purchased}
             purchaseError={purchaseErrors[listing.id]}
@@ -232,6 +260,7 @@ function ListingCard({
   listing,
   isSaved,
   onToggleSaved,
+  saving,
   purchaseState,
   purchased,
   purchaseError,
@@ -240,6 +269,7 @@ function ListingCard({
   listing: ApiMarketplaceListing;
   isSaved: boolean;
   onToggleSaved: () => void;
+  saving: boolean;
   purchaseState: PurchaseState;
   purchased: boolean;
   purchaseError?: string;
@@ -260,6 +290,7 @@ function ListingCard({
         </div>
         <button
           onClick={onToggleSaved}
+          disabled={saving}
           aria-label={isSaved ? "Remove from saved" : "Save listing"}
           className="shrink-0 text-[#D9A441]"
         >
