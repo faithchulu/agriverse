@@ -19,7 +19,7 @@ export default function AuthGate({
     if (isLoading) return;
 
     if (!user) {
-      router.replace("/login");
+      router.replace("/?message=login-required");
       return;
     }
 

@@ -5,6 +5,7 @@ import type { LicenseState, LicenseType } from "../../types/Licensing";
 export interface Transaction {
   id: string;
   licenseId?: string | null;
+  reviewId?: string | null;
   datasetId?: string;
   datasetTitle?: string;
   sellerName?: string;
@@ -13,6 +14,22 @@ export interface Transaction {
   amount: number;
   status: string;
   date: string;
+}
+
+export interface ReputationReview {
+  id: string;
+  buyerName: string;
+  datasetTitle: string;
+  rating: number;
+  comment: string | null;
+  date: string;
+}
+
+export interface FarmerReputation {
+  averageRating: number;
+  totalRatings: number;
+  ratingBreakdown: number[];
+  reviews: ReputationReview[];
 }
 
 export interface Payout {
@@ -64,6 +81,13 @@ export const paymentsApi = {
         reason,
       }),
     ),
+  review: (transactionId: string, rating: number, comment?: string) =>
+    unwrap<{ id: string }>(
+      apiClient.post(`/payments/transactions/${transactionId}/review`, {
+        rating,
+        comment,
+      }),
+    ),
 
   myTransactions: () =>
     unwrap<Transaction[]>(apiClient.get("/payments/transactions/mine")),
@@ -97,4 +121,6 @@ export const paymentsApi = {
   requestPayout: (method: string) =>
     unwrap<Payout>(apiClient.post("/payments/payouts", { method })),
   myPayouts: () => unwrap<Payout[]>(apiClient.get("/payments/payouts/mine")),
+  myReputation: () =>
+    unwrap<FarmerReputation>(apiClient.get("/payments/reputation/mine")),
 };

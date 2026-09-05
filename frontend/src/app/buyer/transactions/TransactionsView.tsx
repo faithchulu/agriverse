@@ -11,6 +11,7 @@ import {
   type Transaction as ApiTransaction,
 } from "../../../lib/api/payments";
 import { extractErrorMessage } from "../../../lib/api/types";
+import ReviewModal from "../../../components/Reviews/ReviewModal";
 import type { TransactionStatus } from "../../../types/BuyerTransaction";
 
 type TransactionFilter =
@@ -63,6 +64,10 @@ export default function TransactionsView() {
   const [query, setQuery] = useState("");
   const [disputingId, setDisputingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<ApiTransaction | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +141,45 @@ export default function TransactionsView() {
       setError(extractErrorMessage(err));
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  function openReview(transaction: ApiTransaction) {
+    if (transaction.status !== "released" || transaction.reviewId) return;
+    setReviewTarget(transaction);
+    setReviewRating(0);
+    setReviewComment("");
+  }
+
+  function closeReview() {
+    if (reviewingId) return;
+    setReviewTarget(null);
+  }
+
+  async function submitReview() {
+    if (!reviewTarget || reviewRating === 0) return;
+    const transaction = reviewTarget;
+    setReviewingId(transaction.id);
+    setError(null);
+    try {
+      const review = await paymentsApi.review(
+        transaction.id,
+        reviewRating,
+        reviewComment || undefined,
+      );
+      setTransactions(
+        (prev) =>
+          prev?.map((item) =>
+            item.id === transaction.id
+              ? { ...item, reviewId: review.id }
+              : item,
+          ) ?? prev,
+      );
+      setReviewTarget(null);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setReviewingId(null);
     }
   }
 
@@ -250,6 +294,16 @@ export default function TransactionsView() {
                         <ExclamationTriangleIcon className="h-4 w-4" />
                       </button>
                     )}
+                    {t.status === "released" && !t.reviewId && (
+                      <button
+                        title="Review this transaction"
+                        disabled={reviewingId === t.id}
+                        onClick={() => openReview(t)}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-[#2F5F3F] hover:bg-[#EAF3DE] disabled:opacity-50"
+                      >
+                        Review
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -268,6 +322,17 @@ export default function TransactionsView() {
           </tbody>
         </table>
       </div>
+      <ReviewModal
+        open={reviewTarget !== null}
+        title={reviewTarget?.datasetTitle ?? "Purchased dataset"}
+        rating={reviewRating}
+        comment={reviewComment}
+        isSubmitting={reviewingId !== null}
+        onRatingChange={setReviewRating}
+        onCommentChange={setReviewComment}
+        onClose={closeReview}
+        onSubmit={submitReview}
+      />
     </div>
   );
 }

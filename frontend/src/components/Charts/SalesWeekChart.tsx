@@ -1,7 +1,8 @@
 "use client";
 import { ApexOptions } from "apexcharts";
-import React, { useState } from "react";
+import React from "react";
 import ReactApexChart from "react-apexcharts";
+import type { DashboardTrend } from "../../lib/api/analytics";
 
 const options: ApexOptions = {
   colors: ["#2F5F3F", "#8FBF9F"],
@@ -67,19 +68,16 @@ interface SalesWeekChartState {
   }[];
 }
 
-const SalesWeekChart: React.FC = () => {
-  const [state] = useState<SalesWeekChartState>({
+const SalesWeekChart: React.FC<{ data: DashboardTrend | null }> = ({
+  data,
+}) => {
+  const labels = data?.labels ?? ["M", "T", "W", "T", "F", "S", "S"];
+  const state: SalesWeekChartState = {
     series: [
-      {
-        name: "Datasets sold",
-        data: [2, 1, 3, 2, 4, 1, 2],
-      },
-      {
-        name: "Buyer inquiries",
-        data: [3, 2, 4, 3, 5, 2, 3],
-      },
+      { name: "Datasets sold", data: data?.primary ?? labels.map(() => 0) },
+      { name: "Disputes", data: data?.secondary ?? labels.map(() => 0) },
     ],
-  });
+  };
 
   return (
     <div className="col-span-12 rounded-lg border border-[#8FBF9F]/30 bg-white p-7.5 dark:border-strokedark dark:bg-boxdark xl:col-span-4">
@@ -94,7 +92,10 @@ const SalesWeekChart: React.FC = () => {
       <div>
         <div id="salesWeekChart" className="-mb-9 -ml-5">
           <ReactApexChart
-            options={options}
+            options={{
+              ...options,
+              xaxis: { ...options.xaxis, categories: labels },
+            }}
             series={state.series}
             type="bar"
             height={350}

@@ -60,7 +60,7 @@ export default function SignupPage() {
           <p className="mt-8 text-center text-sm text-[#3B2F22]/60">
             Already have an account?{" "}
             <a
-              href="/login"
+              href="/"
               className="font-medium text-[#2F5F3F] underline-offset-4 hover:underline"
             >
               Sign in

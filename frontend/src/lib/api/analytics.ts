@@ -30,7 +30,30 @@ export interface BuyerSummary {
   openDisputes: number;
 }
 
-async function unwrap<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
+export interface DashboardTrend {
+  labels: string[];
+  primary: number[];
+  secondary: number[];
+}
+
+export interface DashboardActivity {
+  id: string;
+  type: string;
+  description: string;
+  date: string;
+}
+
+export interface BuyerInterest {
+  id: string;
+  buyerName: string;
+  action: string;
+  datasetTitle: string;
+  date: string;
+}
+
+async function unwrap<T>(
+  promise: Promise<{ data: ApiSuccess<T> }>,
+): Promise<T> {
   const res = await promise;
   return res.data.data;
 }
@@ -39,7 +62,9 @@ export const analyticsApi = {
   farmerSummary: () =>
     unwrap<FarmerSummary>(apiClient.get("/analytics/farmer/summary")),
   farmerLicenseSplit: () =>
-    unwrap<LicenseSplitItem[]>(apiClient.get("/analytics/farmer/license-split")),
+    unwrap<LicenseSplitItem[]>(
+      apiClient.get("/analytics/farmer/license-split"),
+    ),
   farmerTopBuyers: () =>
     unwrap<TopParty[]>(apiClient.get("/analytics/farmer/top-buyers")),
 
@@ -49,4 +74,18 @@ export const analyticsApi = {
     unwrap<LicenseSplitItem[]>(apiClient.get("/analytics/buyer/license-split")),
   buyerTopSellers: () =>
     unwrap<TopParty[]>(apiClient.get("/analytics/buyer/top-sellers")),
+  farmerTrends: () =>
+    unwrap<DashboardTrend>(apiClient.get("/analytics/farmer/trends")),
+  buyerTrends: () =>
+    unwrap<DashboardTrend>(apiClient.get("/analytics/buyer/trends")),
+  farmerWeekly: () =>
+    unwrap<DashboardTrend>(apiClient.get("/analytics/farmer/weekly")),
+  buyerWeekly: () =>
+    unwrap<DashboardTrend>(apiClient.get("/analytics/buyer/weekly")),
+  farmerActivity: () =>
+    unwrap<DashboardActivity[]>(apiClient.get("/analytics/farmer/activity")),
+  farmerBuyerInterest: () =>
+    unwrap<BuyerInterest[]>(apiClient.get("/analytics/farmer/buyer-interest")),
+  buyerActivity: () =>
+    unwrap<DashboardActivity[]>(apiClient.get("/analytics/buyer/activity")),
 };

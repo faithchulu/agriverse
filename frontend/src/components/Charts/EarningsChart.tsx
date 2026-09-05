@@ -1,7 +1,8 @@
 "use client";
 import { ApexOptions } from "apexcharts";
-import React, { useState } from "react";
+import React from "react";
 import ReactApexChart from "react-apexcharts";
+import type { DashboardTrend } from "../../lib/api/analytics";
 
 const options: ApexOptions = {
   legend: {
@@ -104,19 +105,27 @@ interface EarningsChartState {
   }[];
 }
 
-const EarningsChart: React.FC = () => {
-  const [state] = useState<EarningsChartState>({
+const EarningsChart: React.FC<{ data: DashboardTrend | null }> = ({ data }) => {
+  const labels = data?.labels ?? [
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+  ];
+  const state: EarningsChartState = {
     series: [
-      {
-        name: "Revenue",
-        data: [65, 40, 90, 110, 60, 95, 130, 85, 160, 90, 120, 155],
-      },
-      {
-        name: "Payouts",
-        data: [50, 35, 70, 95, 55, 80, 110, 70, 140, 80, 100, 130],
-      },
+      { name: "Revenue", data: data?.primary ?? labels.map(() => 0) },
+      { name: "Payouts", data: data?.secondary ?? labels.map(() => 0) },
     ],
-  });
+  };
 
   return (
     <div className="col-span-12 rounded-lg border border-[#8FBF9F]/30 bg-white px-5 pb-5 pt-7.5 dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:col-span-8">
@@ -150,7 +159,10 @@ const EarningsChart: React.FC = () => {
       <div>
         <div id="earningsChart" className="-ml-5">
           <ReactApexChart
-            options={options}
+            options={{
+              ...options,
+              xaxis: { ...options.xaxis, categories: labels },
+            }}
             series={state.series}
             type="area"
             height={350}

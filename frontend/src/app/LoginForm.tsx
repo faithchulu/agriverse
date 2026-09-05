@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/auth/AuthContext";
 import { extractErrorMessage } from "../lib/api/types";
@@ -11,9 +11,18 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
 
   const { login } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    const message = new URLSearchParams(window.location.search).get("message");
+    if (message === "login-required") {
+      setLoginNotice("Please sign in to access that page.");
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +31,9 @@ export function LoginForm() {
 
     try {
       const user = await login(email, password);
-      router.push(user.role === "FARMER" ? "/farmer/dashboard" : "/buyer/dashboard");
+      router.push(
+        user.role === "FARMER" ? "/farmer/dashboard" : "/buyer/dashboard",
+      );
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -95,6 +106,15 @@ export function LoginForm() {
           Keep me signed in
         </label>
       </div>
+
+      {loginNotice && (
+        <p
+          role="status"
+          className="rounded-md border border-[#D9A441]/30 bg-[#FAEEDA] px-3 py-2 text-sm text-[#854F0B]"
+        >
+          {loginNotice}
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-[#B4442E]">

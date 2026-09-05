@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import { dummyReviews, dummyDisputes, ratingBreakdown } from "./dummy-data";
+import { paymentsApi, type FarmerReputation } from "../../../lib/api/payments";
+import { extractErrorMessage } from "../../../lib/api/types";
+import { dummyDisputes } from "./dummy-data";
 import type { DisputeStatus } from "../../../types/Dispute";
 
 const DISPUTE_STYLES: Record<DisputeStatus, string> = {
@@ -36,20 +38,38 @@ function StarRow({ rating }: { rating: number }) {
 }
 
 export default function ReputationView() {
-  const totalRatings = ratingBreakdown.reduce((sum, n) => sum + n, 0);
+  const [reputation, setReputation] = useState<FarmerReputation | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const average = useMemo(() => {
-    const weighted = ratingBreakdown.reduce(
-      (sum, count, i) => sum + count * (5 - i),
-      0,
-    );
-    return totalRatings === 0 ? 0 : weighted / totalRatings;
-  }, [totalRatings]);
+  useEffect(() => {
+    let cancelled = false;
+    paymentsApi
+      .myReputation()
+      .then((data) => {
+        if (!cancelled) setReputation(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(extractErrorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalRatings = reputation?.totalRatings ?? 0;
+  const average = reputation?.averageRating ?? 0;
+  const ratingBreakdown = reputation?.ratingBreakdown ?? [0, 0, 0, 0, 0];
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-4 py-3 text-sm text-[#A32D2D]">
+          Could not load reputation: {error}
+        </p>
+      )}
+
       {/* Summary */}
-      <div className="grid gap-6 rounded-lg border border-[#8FBF9F]/30 bg-white p-6 sm:grid-cols-[auto_1fr] dark:border-strokedark dark:bg-boxdark">
+      <div className="grid gap-6 rounded-lg border border-[#8FBF9F]/30 bg-white p-6 dark:border-strokedark dark:bg-boxdark sm:grid-cols-[auto_1fr]">
         <div className="flex flex-col items-center justify-center gap-1 sm:border-r sm:border-[#3B2F22]/10 sm:pr-6 dark:sm:border-strokedark">
           <p className="text-4xl font-semibold text-[#1B3A2B] dark:text-white">
             {average.toFixed(1)}
@@ -92,7 +112,12 @@ export default function ReputationView() {
           </h2>
         </div>
         <ul className="divide-y divide-[#3B2F22]/5 dark:divide-strokedark">
-          {dummyReviews.map((review) => (
+          {reputation === null && !error && (
+            <li className="p-4 text-sm text-[#3B2F22]/50">
+              Loading reviews...
+            </li>
+          )}
+          {reputation?.reviews.map((review) => (
             <li key={review.id} className="p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium text-[#1B3A2B] dark:text-white">
@@ -108,6 +133,9 @@ export default function ReputationView() {
               </p>
             </li>
           ))}
+          {reputation && reputation.reviews.length === 0 && (
+            <li className="p-4 text-sm text-[#3B2F22]/50">No reviews yet.</li>
+          )}
         </ul>
       </div>
 

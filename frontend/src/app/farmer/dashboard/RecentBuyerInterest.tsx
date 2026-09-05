@@ -1,130 +1,84 @@
-import React from "react";
+"use client";
 
-type InterestAction = "viewed" | "purchased" | "saved" | "inquired";
-
-interface BuyerInterest {
-  id: string;
-  buyerName: string;
-  action: InterestAction;
-  datasetTitle: string;
-  minutesAgo: number;
-  isNew: boolean;
-}
-
-// TODO: replace with `const { data } = await axios.get("/api/farmer/buyer-interest")`
-const interestFeed: BuyerInterest[] = [
-  {
-    id: "int_001",
-    buyerName: "GreenGrain Research Co.",
-    action: "purchased",
-    datasetTitle: "Maize soil moisture",
-    minutesAgo: 18,
-    isNew: true,
-  },
-  {
-    id: "int_002",
-    buyerName: "AgriSeed Labs",
-    action: "viewed",
-    datasetTitle: "Soybean pest incidence log",
-    minutesAgo: 45,
-    isNew: true,
-  },
-  {
-    id: "int_003",
-    buyerName: "Kalundu Agri University",
-    action: "saved",
-    datasetTitle: "Cassava root growth data",
-    minutesAgo: 120,
-    isNew: false,
-  },
-  {
-    id: "int_004",
-    buyerName: "Highveld Seed Traders",
-    action: "inquired",
-    datasetTitle: "Sorghum drought trial",
-    minutesAgo: 340,
-    isNew: false,
-  },
-  {
-    id: "int_005",
-    buyerName: "FarmTech Analytics",
-    action: "viewed",
-    datasetTitle: "Hybrid wheat yield records",
-    minutesAgo: 480,
-    isNew: false,
-  },
-];
-
-const ACTION_LABEL: Record<InterestAction, string> = {
-  viewed: "viewed",
-  purchased: "purchased",
-  saved: "saved",
-  inquired: "asked about",
-};
-
-const ACTION_DOT: Record<InterestAction, string> = {
-  viewed: "bg-[#8FBF9F]",
-  purchased: "bg-[#2F5F3F]",
-  saved: "bg-[#D9A441]",
-  inquired: "bg-[#0C447C]",
-};
+import React, { useEffect, useState } from "react";
+import { HeartIcon } from "@heroicons/react/24/solid";
+import { analyticsApi, type BuyerInterest } from "../../../lib/api/analytics";
+import { extractErrorMessage } from "../../../lib/api/types";
 
 function initials(name: string) {
   return name
     .split(" ")
-    .map((w) => w[0])
+    .map((word) => word[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
 }
 
-function formatTimeAgo(minutes: number) {
+function timeAgo(date: string) {
+  const minutes = Math.max(
+    1,
+    Math.round((Date.now() - new Date(date).getTime()) / 60000),
+  );
   if (minutes < 60) return `${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.round(hours / 24)}d`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
+  return `${Math.round(minutes / 1440)}d`;
 }
 
-const RecentBuyerInterest: React.FC = () => {
+const RecentBuyerInterest: React.FC<{ data?: BuyerInterest[] | null }> = ({
+  data,
+}) => {
+  const [items, setItems] = useState<BuyerInterest[] | null>(data ?? null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data) {
+      setItems(data);
+      return;
+    }
+    analyticsApi
+      .farmerBuyerInterest()
+      .then(setItems)
+      .catch((err) => {
+        setError(extractErrorMessage(err));
+        setItems([]);
+      });
+  }, [data]);
+
   return (
     <div className="col-span-12 rounded-lg border border-[#8FBF9F]/30 bg-white py-6 dark:border-strokedark dark:bg-boxdark xl:col-span-4">
       <h4 className="mb-6 px-7.5 text-xl font-semibold text-[#1B3A2B] dark:text-white">
         Recent buyer interest
       </h4>
-
+      {error && <p className="px-7.5 text-sm text-[#A32D2D]">{error}</p>}
+      {items === null && (
+        <p className="px-7.5 text-sm text-[#3B2F22]/50">Loading interest...</p>
+      )}
+      {items !== null && items.length === 0 && !error && (
+        <p className="px-7.5 text-sm text-[#3B2F22]/50">
+          No buyer activity yet.
+        </p>
+      )}
       <div>
-        {interestFeed.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-4 px-7.5 py-3 hover:bg-[#EAF3DE]/60 dark:hover:bg-meta-4"
-          >
-            <div className="relative h-11 w-11 shrink-0">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF3DE] text-xs font-semibold text-[#2F5F3F] dark:bg-[#2F5F3F]/30 dark:text-[#8FBF9F]">
-                {initials(item.buyerName)}
-              </div>
-              <span
-                className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-boxdark ${
-                  ACTION_DOT[item.action]
-                }`}
-              />
+        {items?.map((item) => (
+          <div key={item.id} className="flex items-center gap-4 px-7.5 py-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EAF3DE] text-xs font-semibold text-[#2F5F3F]">
+              {initials(item.buyerName)}
             </div>
-
-            <div className="flex flex-1 items-center justify-between">
-              <div>
+            <div className="flex flex-1 items-center justify-between gap-2">
+              <div className="min-w-0">
                 <h5 className="text-sm font-medium text-[#1B3A2B] dark:text-white">
                   {item.buyerName}
                 </h5>
                 <p className="text-xs text-[#3B2F22]/60 dark:text-bodydark2">
-                  {ACTION_LABEL[item.action]}{" "}
+                  {item.action}{" "}
                   <span className="font-medium">{item.datasetTitle}</span>
-                  <span className="text-[#3B2F22]/40"> · {formatTimeAgo(item.minutesAgo)}</span>
+                  <span className="text-[#3B2F22]/40">
+                    {" "}
+                    · {timeAgo(item.date)}
+                  </span>
                 </p>
               </div>
-              {item.isNew && (
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2F5F3F]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                </div>
-              )}
+              <HeartIcon className="h-4 w-4 shrink-0 text-[#D9A441]" />
             </div>
           </div>
         ))}

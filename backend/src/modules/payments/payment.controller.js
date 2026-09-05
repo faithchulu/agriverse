@@ -76,6 +76,21 @@ const listMyPayouts = asyncHandler(async (req, res) => {
   success(res, payouts);
 });
 
+const submitBuyerReview = asyncHandler(async (req, res) => {
+  const review = await service.createReview(
+    req.user.id,
+    req.params.id,
+    req.body.rating,
+    req.body.comment,
+  );
+  success(res, review, 201);
+});
+
+const getFarmerReputationHistory = asyncHandler(async (req, res) => {
+  const reputationHistory = await service.farmerReputation(req.user.id);
+  success(res, reputationHistory);
+});
+
 module.exports = {
   purchase,
   pay,
@@ -87,4 +102,6 @@ module.exports = {
   getPayoutBalance,
   requestPayout,
   listMyPayouts,
+  submitBuyerReview,
+  getFarmerReputationHistory,
 };

@@ -30,6 +30,13 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401 && typeof window !== "undefined") {
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      const requestUrl = error?.config?.url || "";
+      const isAuthRequest =
+        requestUrl.includes("/auth/") ||
+        requestUrl.includes("/auth/register");
+      if (!isAuthRequest && !window.location.pathname.startsWith("/")) {
+        window.location.assign("/?message=login-required");
+      }
     }
     return Promise.reject(error);
   },

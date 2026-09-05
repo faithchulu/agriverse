@@ -1,7 +1,8 @@
 "use client";
 import { ApexOptions } from "apexcharts";
-import React, { useState } from "react";
+import React from "react";
 import ReactApexChart from "react-apexcharts";
+import type { DashboardTrend } from "../../lib/api/analytics";
 
 const options: ApexOptions = {
   legend: {
@@ -104,19 +105,27 @@ interface SpendingChartState {
   }[];
 }
 
-const SpendingChart: React.FC = () => {
-  const [state] = useState<SpendingChartState>({
+const SpendingChart: React.FC<{ data: DashboardTrend | null }> = ({ data }) => {
+  const labels = data?.labels ?? [
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+  ];
+  const state: SpendingChartState = {
     series: [
-      {
-        name: "Spent",
-        data: [40, 55, 35, 70, 50, 65, 90, 60, 110, 75, 95, 120],
-      },
-      {
-        name: "Refunded",
-        data: [0, 10, 0, 5, 0, 0, 15, 0, 0, 10, 0, 0],
-      },
+      { name: "Spent", data: data?.primary ?? labels.map(() => 0) },
+      { name: "Refunded", data: data?.secondary ?? labels.map(() => 0) },
     ],
-  });
+  };
 
   return (
     <div className="col-span-12 rounded-lg border border-[#8FBF9F]/30 bg-white px-5 pb-5 pt-7.5 dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:col-span-8">
@@ -150,7 +159,10 @@ const SpendingChart: React.FC = () => {
       <div>
         <div id="spendingChart" className="-ml-5">
           <ReactApexChart
-            options={options}
+            options={{
+              ...options,
+              xaxis: { ...options.xaxis, categories: labels },
+            }}
             series={state.series}
             type="area"
             height={350}

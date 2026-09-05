@@ -7,6 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { paymentsApi, type Transaction } from "../../../../lib/api/payments";
 import { extractErrorMessage } from "../../../../lib/api/types";
+import ReviewModal from "../../../../components/Reviews/ReviewModal";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-[#FAEEDA] text-[#854F0B]",
@@ -31,6 +32,10 @@ export default function PurchaseHistoryView() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<Transaction | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +82,43 @@ export default function PurchaseHistoryView() {
         .reduce((sum, p) => sum + p.amount, 0),
     [purchases],
   );
+
+  function openReview(purchase: Transaction) {
+    if (purchase.status !== "released" || purchase.reviewId) return;
+    setReviewTarget(purchase);
+    setReviewRating(0);
+    setReviewComment("");
+  }
+
+  function closeReview() {
+    if (reviewingId) return;
+    setReviewTarget(null);
+  }
+
+  async function submitReview() {
+    if (!reviewTarget || reviewRating === 0) return;
+    const purchase = reviewTarget;
+    setReviewingId(purchase.id);
+    setError(null);
+    try {
+      const review = await paymentsApi.review(
+        purchase.id,
+        reviewRating,
+        reviewComment || undefined,
+      );
+      setPurchases(
+        (prev) =>
+          prev?.map((item) =>
+            item.id === purchase.id ? { ...item, reviewId: review.id } : item,
+          ) ?? prev,
+      );
+      setReviewTarget(null);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setReviewingId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -130,7 +172,11 @@ export default function PurchaseHistoryView() {
           )}
 
           {filtered.map((purchase) => (
-            <PurchaseRow key={purchase.id} purchase={purchase} />
+            <PurchaseRow
+              key={purchase.id}
+              purchase={purchase}
+              onReview={() => openReview(purchase)}
+            />
           ))}
 
           {filtered.length === 0 && (
@@ -140,11 +186,28 @@ export default function PurchaseHistoryView() {
           )}
         </ul>
       </div>
+      <ReviewModal
+        open={reviewTarget !== null}
+        title={reviewTarget?.datasetTitle ?? "Purchased dataset"}
+        rating={reviewRating}
+        comment={reviewComment}
+        isSubmitting={reviewingId !== null}
+        onRatingChange={setReviewRating}
+        onCommentChange={setReviewComment}
+        onClose={closeReview}
+        onSubmit={submitReview}
+      />
     </div>
   );
 }
 
-function PurchaseRow({ purchase }: { purchase: Transaction }) {
+function PurchaseRow({
+  purchase,
+  onReview,
+}: {
+  purchase: Transaction;
+  onReview: () => void;
+}) {
   return (
     <li className="flex items-center justify-between gap-4 p-4">
       <div className="min-w-0 flex-1">
@@ -168,6 +231,16 @@ function PurchaseRow({ purchase }: { purchase: Transaction }) {
         <span className="w-16 text-right text-sm font-semibold text-[#1B3A2B] dark:text-white">
           ZMW {purchase.amount.toFixed(2)}
         </span>
+        {purchase.status === "released" && !purchase.reviewId && (
+          <button
+            type="button"
+            title="Rate this farmer"
+            onClick={onReview}
+            className="rounded-md px-2 py-1 text-xs font-medium text-[#2F5F3F] hover:bg-[#EAF3DE] disabled:opacity-50"
+          >
+            Rate farmer
+          </button>
+        )}
         <button
           title="Receipt download will be available once billing integration is live"
           disabled

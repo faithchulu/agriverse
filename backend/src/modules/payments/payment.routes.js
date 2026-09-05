@@ -6,6 +6,7 @@ const requireRole = require("../../middleware/role.middleware");
 const {
   raiseDisputeSchema,
   requestPayoutSchema,
+  createReviewSchema,
 } = require("./payment.validation");
 
 const router = express.Router();
@@ -34,6 +35,12 @@ router.post(
 
 // Viewing — role-aware inside the service, both roles allowed here
 router.get("/transactions/mine", controller.listMyTransactions);
+router.post(
+  "/transactions/:id/review",
+  requireRole("BUYER"),
+  validate(createReviewSchema),
+  controller.submitBuyerReview,
+);
 
 // Licenses — buyer only
 router.get("/licenses/mine", requireRole("BUYER"), controller.listMyLicenses);
@@ -56,5 +63,10 @@ router.post(
   controller.requestPayout,
 );
 router.get("/payouts/mine", requireRole("FARMER"), controller.listMyPayouts);
+router.get(
+  "/reputation/mine",
+  requireRole("FARMER"),
+  controller.getFarmerReputationHistory,
+);
 
 module.exports = router;

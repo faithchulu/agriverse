@@ -13,7 +13,12 @@ import LicenseSplitChart from "../Charts/LicenseSplitChart";
 import RecentActivity from "../../app/farmer/dashboard/RecentActivity";
 import TopBuyersTable from "../../app/farmer/dashboard/TopBuyersTable";
 import RecentBuyerInterest from "../../app/farmer/dashboard/RecentBuyerInterest";
-import { analyticsApi } from "../../lib/api/analytics";
+import {
+  analyticsApi,
+  type DashboardActivity,
+  type DashboardTrend,
+  type BuyerInterest,
+} from "../../lib/api/analytics";
 import type {
   FarmerSummary,
   LicenseSplitItem,
@@ -23,8 +28,16 @@ import { extractErrorMessage } from "../../lib/api/types";
 
 const FarmerDashboard: React.FC = () => {
   const [summary, setSummary] = useState<FarmerSummary | null>(null);
-  const [licenseSplit, setLicenseSplit] = useState<LicenseSplitItem[] | null>(null);
+  const [licenseSplit, setLicenseSplit] = useState<LicenseSplitItem[] | null>(
+    null,
+  );
   const [topBuyers, setTopBuyers] = useState<TopParty[] | null>(null);
+  const [trends, setTrends] = useState<DashboardTrend | null>(null);
+  const [weekly, setWeekly] = useState<DashboardTrend | null>(null);
+  const [activity, setActivity] = useState<DashboardActivity[] | null>(null);
+  const [buyerInterest, setBuyerInterest] = useState<BuyerInterest[] | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,29 +45,50 @@ const FarmerDashboard: React.FC = () => {
 
     async function load() {
       try {
-        const [summaryRes, splitRes, buyersRes] = await Promise.all([
+        const [
+          summaryRes,
+          splitRes,
+          buyersRes,
+          trendsRes,
+          weeklyRes,
+          activityRes,
+          interestRes,
+        ] = await Promise.all([
           analyticsApi.farmerSummary(),
           analyticsApi.farmerLicenseSplit(),
           analyticsApi.farmerTopBuyers(),
+          analyticsApi.farmerTrends(),
+          analyticsApi.farmerWeekly(),
+          analyticsApi.farmerActivity(),
+          analyticsApi.farmerBuyerInterest(),
         ]);
         if (cancelled) return;
         setSummary(summaryRes);
         setLicenseSplit(splitRes);
         setTopBuyers(buyersRes);
+        setTrends(trendsRes);
+        setWeekly(weeklyRes);
+        setActivity(activityRes);
+        setBuyerInterest(interestRes);
       } catch (err) {
         if (cancelled) return;
         setError(extractErrorMessage(err));
         // Fall back to empty/zero states so the dashboard still renders
         // something sensible instead of spinning forever.
-        setSummary((prev) => prev ?? {
-          activeListings: 0,
-          totalEarnings: 0,
-          datasetsSold: 0,
-          averageRating: 0,
-          ratingCount: 0,
-        });
+        setSummary(
+          (prev) =>
+            prev ?? {
+              activeListings: 0,
+              totalEarnings: 0,
+              datasetsSold: 0,
+              averageRating: 0,
+              ratingCount: 0,
+            },
+        );
         setLicenseSplit((prev) => prev ?? []);
         setTopBuyers((prev) => prev ?? []);
+        setActivity((prev) => prev ?? []);
+        setBuyerInterest((prev) => prev ?? []);
       }
     }
 
@@ -102,20 +136,20 @@ const FarmerDashboard: React.FC = () => {
       <div className="mt-4 grid grid-cols-12 gap-4 md:mt-6 md:gap-6 2xl:mt-7.5 2xl:gap-7.5">
         {/* Still on placeholder data — no /analytics endpoint exists yet
             for a monthly earnings trend or a weekly activity breakdown. */}
-        <EarningsChart />
-        <SalesWeekChart />
+        <EarningsChart data={trends} />
+        <SalesWeekChart data={weekly} />
 
         <LicenseSplitChart data={licenseSplit} />
 
         {/* Still on placeholder data — no /analytics endpoint exists yet
             for a farmer activity feed. */}
-        <RecentActivity />
+        <RecentActivity data={activity} />
 
         <TopBuyersTable buyers={topBuyers} />
 
         {/* Still on placeholder data — "saved/interested buyers" isn't
             tracked anywhere in the backend yet. */}
-        <RecentBuyerInterest />
+        <RecentBuyerInterest data={buyerInterest} />
       </div>
     </>
   );

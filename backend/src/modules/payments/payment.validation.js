@@ -8,4 +8,13 @@ const requestPayoutSchema = z.object({
   method: z.string().min(1, "Payout method is required"),
 });
 
-module.exports = { raiseDisputeSchema, requestPayoutSchema };
+const createReviewSchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: z.string().max(1000).optional(),
+});
+
+module.exports = {
+  raiseDisputeSchema,
+  requestPayoutSchema,
+  createReviewSchema,
+};

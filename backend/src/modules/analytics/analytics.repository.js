@@ -36,7 +36,10 @@ function topBuyersForFarmer(farmerId) {
 function buyerProfilesByIds(ids) {
   return prisma.user.findMany({
     where: { id: { in: ids } },
-    select: { id: true, buyerProfile: { select: { organizationName: true, contactName: true } } },
+    select: {
+      id: true,
+      buyerProfile: { select: { organizationName: true, contactName: true } },
+    },
   });
 }
 
@@ -87,7 +90,99 @@ function topSellersForBuyer(buyerId) {
 function farmerProfilesByIds(ids) {
   return prisma.user.findMany({
     where: { id: { in: ids } },
-    select: { id: true, farmerProfile: { select: { farmName: true, fullName: true } } },
+    select: {
+      id: true,
+      farmerProfile: { select: { farmName: true, fullName: true } },
+    },
+  });
+}
+
+function farmerDashboardTransactions(farmerId) {
+  return prisma.transaction.findMany({
+    where: { farmerId },
+    include: {
+      dataset: { select: { title: true } },
+      buyer: {
+        select: {
+          buyerProfile: {
+            select: { organizationName: true, contactName: true },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
+function farmerDashboardPayouts(farmerId) {
+  return prisma.payout.findMany({
+    where: { farmerId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
+function farmerDashboardReviews(farmerId) {
+  return prisma.review.findMany({
+    where: { farmerId },
+    include: {
+      dataset: { select: { title: true } },
+      buyer: {
+        select: {
+          buyerProfile: {
+            select: { organizationName: true, contactName: true },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
+function farmerDashboardDatasets(farmerId) {
+  return prisma.dataset.findMany({
+    where: { farmerId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { id: true, title: true, createdAt: true },
+  });
+}
+
+function buyerDashboardTransactions(buyerId) {
+  return prisma.transaction.findMany({
+    where: { buyerId },
+    include: {
+      dataset: { select: { title: true } },
+      farmer: {
+        select: {
+          farmerProfile: { select: { farmName: true, fullName: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
+function buyerDashboardDisputes(buyerId) {
+  return prisma.dispute.findMany({
+    where: { transaction: { buyerId } },
+    include: {
+      transaction: { include: { dataset: { select: { title: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
+function buyerDashboardLicenses(buyerId) {
+  return prisma.license.findMany({
+    where: { buyerId },
+    include: { dataset: { select: { title: true } } },
+    orderBy: { grantedAt: "desc" },
+    take: 20,
   });
 }
 
@@ -103,4 +198,11 @@ module.exports = {
   countOpenDisputesForBuyer,
   topSellersForBuyer,
   farmerProfilesByIds,
+  farmerDashboardTransactions,
+  farmerDashboardPayouts,
+  farmerDashboardReviews,
+  farmerDashboardDatasets,
+  buyerDashboardTransactions,
+  buyerDashboardDisputes,
+  buyerDashboardLicenses,
 };

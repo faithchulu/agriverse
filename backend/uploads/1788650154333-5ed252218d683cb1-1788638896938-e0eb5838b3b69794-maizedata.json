@@ -1,0 +1,44 @@
+[
+  {
+    "dataset_title": "Maize Yield Trial",
+    "crop_type": "Maize",
+    "region": "Central Province",
+    "sampling_date_from": "2026-03-01",
+    "sampling_date_to": "2026-06-30",
+    "sampling_method": "Randomized field sampling",
+    "data": {
+      "soil_ph": 6.2,
+      "moisture_percent": 18,
+      "yield_kg_per_ha": 5200
+    },
+    "description": "Trial data collected from smallholder maize plots in Central Province during the 2026 growing season."
+  },
+  {
+    "dataset_title": "Soybean Soil Health Survey",
+    "crop_type": "Soybean",
+    "region": "Eastern Province",
+    "sampling_date_from": "2026-02-15",
+    "sampling_date_to": "2026-05-20",
+    "sampling_method": "Composite soil sampling",
+    "data": {
+      "soil_ph": 5.8,
+      "moisture_percent": 22,
+      "yield_kg_per_ha": 3100
+    },
+    "description": "Soil health survey conducted on soybean farms in Eastern Province."
+  },
+  {
+    "dataset_title": "Wheat Irrigation Study",
+    "crop_type": "Wheat",
+    "region": "Southern Province",
+    "sampling_date_from": "2026-04-01",
+    "sampling_date_to": "2026-07-15",
+    "sampling_method": "Controlled irrigation plots",
+    "data": {
+      "soil_ph": 6.5,
+      "moisture_percent": 25,
+      "yield_kg_per_ha": 4500
+    },
+    "description": "Study on irrigation effects on wheat yields in Southern Province."
+  }
+]

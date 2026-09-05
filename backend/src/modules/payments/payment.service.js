@@ -209,6 +209,7 @@ function shapeTransactionForBuyer(t) {
   return {
     id: t.id,
     licenseId: t.license?.id || null,
+    reviewId: t.review?.id || null,
     datasetTitle: t.dataset.title,
     sellerName:
       t.farmer.farmerProfile?.farmName ||
@@ -225,6 +226,7 @@ function shapeTransactionForFarmer(t) {
   return {
     id: t.id,
     licenseId: t.license?.id || null,
+    reviewId: t.review?.id || null,
     datasetTitle: t.dataset.title,
     buyerName:
       t.buyer.buyerProfile?.organizationName ||
@@ -311,6 +313,67 @@ async function authorizeLicenseDownload(buyerId, licenseId) {
   };
 }
 
+async function createReview(buyerId, transactionId, rating, comment) {
+  const transaction = await repo.findTransactionById(transactionId);
+  if (!transaction) {
+    const err = new Error("Transaction not found");
+    err.status = 404;
+    throw err;
+  }
+  if (transaction.buyerId !== buyerId) {
+    const err = new Error("You can only review your own purchases");
+    err.status = 403;
+    throw err;
+  }
+  if (transaction.status !== "RELEASED") {
+    const err = new Error("Only completed transactions can be reviewed");
+    err.status = 409;
+    throw err;
+  }
+  if (await repo.findReviewByTransaction(transactionId)) {
+    const err = new Error("This transaction has already been reviewed");
+    err.status = 409;
+    throw err;
+  }
+
+  return repo.createReview({
+    transactionId,
+    datasetId: transaction.datasetId,
+    buyerId,
+    farmerId: transaction.farmerId,
+    rating,
+    comment: comment || null,
+  });
+}
+
+async function farmerReputation(farmerId) {
+  const reviews = await repo.findReviewsByFarmer(farmerId);
+  const breakdown = [5, 4, 3, 2, 1].map(
+    (rating) => reviews.filter((review) => review.rating === rating).length,
+  );
+  const total = reviews.length;
+  const average = total
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / total
+    : 0;
+
+  return {
+    averageRating: Number(average.toFixed(1)),
+    totalRatings: total,
+    ratingBreakdown: breakdown,
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      buyerName:
+        review.buyer.buyerProfile?.organizationName ||
+        review.buyer.buyerProfile?.contactName ||
+        "Unknown buyer",
+      datasetTitle: review.dataset.title,
+      rating: review.rating,
+      comment: review.comment,
+      date: review.createdAt,
+    })),
+  };
+}
+
 module.exports = {
   purchaseListing,
   payTransaction,
@@ -323,4 +386,6 @@ module.exports = {
   listMyLicenses,
   authorizeLicenseDownload,
   markLicenseUsed: repo.markLicenseUsed,
+  createReview,
+  farmerReputation,
 };

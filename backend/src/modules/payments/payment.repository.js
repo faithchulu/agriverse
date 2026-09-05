@@ -30,6 +30,7 @@ function findTransactionsByBuyer(buyerId) {
     include: {
       dataset: { select: { title: true } },
       license: { select: { id: true } },
+      review: { select: { id: true } },
       farmer: {
         select: {
           farmerProfile: { select: { farmName: true, fullName: true } },
@@ -46,6 +47,7 @@ function findTransactionsByFarmer(farmerId) {
     include: {
       dataset: { select: { title: true } },
       license: { select: { id: true } },
+      review: { select: { id: true } },
       buyer: {
         select: {
           buyerProfile: {
@@ -105,6 +107,31 @@ function createDispute(data, tx = prisma) {
   return tx.dispute.create({ data });
 }
 
+function findReviewByTransaction(transactionId) {
+  return prisma.review.findUnique({ where: { transactionId } });
+}
+
+function createReview(data) {
+  return prisma.review.create({ data });
+}
+
+function findReviewsByFarmer(farmerId) {
+  return prisma.review.findMany({
+    where: { farmerId },
+    include: {
+      buyer: {
+        select: {
+          buyerProfile: {
+            select: { organizationName: true, contactName: true },
+          },
+        },
+      },
+      dataset: { select: { title: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 // ---------- Payouts ----------
 
 function findReleasedUnpaidByFarmer(farmerId, tx = prisma) {
@@ -143,6 +170,9 @@ module.exports = {
   findLicenseForDownload,
   markLicenseUsed,
   createDispute,
+  findReviewByTransaction,
+  createReview,
+  findReviewsByFarmer,
   findReleasedUnpaidByFarmer,
   claimTransactionsForPayout,
   createPayout,

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   XMarkIcon,
   ChevronDownIcon,
+  ArrowRightOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import SidebarLinkGroup from "./SidebarLinkGroup";
 import { getNavForRole } from "./navConfig";
@@ -22,7 +23,8 @@ function isChildActive(href: string, pathname: string) {
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, logout } = useAuth();
 
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
@@ -102,7 +104,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       </div>
       {/* <!-- SIDEBAR HEADER --> */}
 
-      <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
+      <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto duration-300 ease-linear">
         <nav className="mt-5 px-4 py-4 lg:mt-6 lg:px-6">
           {navSections.map((section) => (
             <div key={section.title}>
@@ -120,7 +122,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                     );
 
                     return (
-                      <SidebarLinkGroup key={item.label} activeCondition={active}>
+                      <SidebarLinkGroup
+                        key={item.label}
+                        activeCondition={active}
+                      >
                         {(handleClick, open) => (
                           <React.Fragment>
                             <Link
@@ -193,6 +198,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             </div>
           ))}
         </nav>
+
+        <div className="mt-auto border-t border-[#8FBF9F]/20 px-4 py-4 lg:px-6">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              router.replace("/");
+            }}
+            className="group flex w-full items-center gap-2.5 rounded-md px-4 py-2 font-medium text-[#EAF6EC]/80 transition-colors hover:bg-[#2F5F3F] hover:text-white"
+          >
+            <ArrowRightOnRectangleIcon className="h-5 w-5 shrink-0" />
+            Log out
+          </button>
+        </div>
       </div>
     </aside>
   );
