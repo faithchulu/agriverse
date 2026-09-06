@@ -2,6 +2,7 @@ const asyncHandler = require("../../utils/asynchandler");
 const path = require("path");
 const { success } = require("../../utils/response");
 const service = require("./payment.service");
+const storage = require("../storage/storage.service");
 
 const purchase = asyncHandler(async (req, res) => {
   const transaction = await service.purchaseListing(
@@ -54,11 +55,20 @@ const downloadLicense = asyncHandler(async (req, res) => {
   const extension = path.extname(download.filePath);
   const safeName = download.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-  res.download(download.filePath, `${safeName}${extension}`, async (err) => {
-    if (!err && download.oneTime) {
-      await service.markLicenseUsed(req.params.id);
-    }
+  const object = await storage.getDataset(download.filePath);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${safeName}${extension}"`,
+  );
+  if (object.ContentType) res.setHeader("Content-Type", object.ContentType);
+  if (object.ContentLength !== undefined) {
+    res.setHeader("Content-Length", object.ContentLength);
+  }
+  object.Body.on("error", (err) => res.destroy(err));
+  object.Body.on("end", async () => {
+    if (download.oneTime) await service.markLicenseUsed(req.params.id);
   });
+  object.Body.pipe(res);
 });
 
 const getPayoutBalance = asyncHandler(async (req, res) => {

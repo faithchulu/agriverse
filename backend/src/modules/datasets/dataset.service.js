@@ -1,8 +1,8 @@
-const fs = require("fs/promises");
 const repo = require("./dataset.repository");
-const { hashFile } = require("../../utils/hash");
+const { hashBuffer } = require("../../utils/hash");
 const { fromEnumCase } = require("../../utils/normalize");
 const logger = require("../../utils/logger");
+const storage = require("../storage/storage.service");
 
 // Deliberately whitelists fields — same reasoning as marketplace.service.js:
 // never spread the raw Prisma row, since that would leak filePath (a server
@@ -46,8 +46,8 @@ async function createDataset(farmerId, input, file) {
   let fileHash = null;
 
   if (file) {
-    filePath = file.path;
-    fileHash = await hashFile(file.path);
+    filePath = await storage.uploadDataset(file);
+    fileHash = hashBuffer(file.buffer);
   }
 
   const created = await repo.create({
@@ -118,11 +118,9 @@ async function deleteDataset(farmerId, datasetId) {
 
   if (dataset.filePath) {
     try {
-      await fs.unlink(dataset.filePath);
+      await storage.deleteDataset(dataset.filePath);
     } catch (e) {
-      // Non-fatal — the DB row is the source of truth; a leftover file
-      // on disk is a cleanup nuisance, not a correctness problem.
-      logger.warn("Failed to delete dataset file on disk:", e.message);
+      logger.warn("Failed to delete dataset object from R2:", e.message);
     }
   }
 

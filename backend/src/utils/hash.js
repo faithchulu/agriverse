@@ -1,6 +1,10 @@
 const crypto = require("crypto");
 const fs = require("fs");
 
+function hashBuffer(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
 function hashFile(filePath) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash("sha256");
@@ -11,4 +15,4 @@ function hashFile(filePath) {
   });
 }
 
-module.exports = { hashFile };
+module.exports = { hashBuffer, hashFile };
